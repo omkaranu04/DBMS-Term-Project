@@ -1,0 +1,41 @@
+Nodes:
+    Product Node
+        - Id
+        - ASIN
+        - title
+        - salesrank
+        - number of positive ratings (>= 3)
+        - number of negative ratings (< 3)
+        - avg rating
+
+    Group Node
+        - group
+
+    Category Node
+        - category
+
+    User Node
+        - Id
+        - number of reviews
+        - avg rating
+    
+Edges:
+    BELONGS_TO
+        - Product Node -> Category Node
+
+    PART_OF
+        - Product Node -> Group Node
+
+    REVIEWED
+        User Node -> Product Node
+            - Date
+            - Rating
+            - Votes
+            - Helpful
+
+    SIMILAR
+        Product Node -> Product Node (based on "similar" section in the data)
+
+    COPURCHASED_WITH
+        Product Node -> Product Node
+            - Frequency
