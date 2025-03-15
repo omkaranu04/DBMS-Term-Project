@@ -4,8 +4,6 @@ Nodes:
         - ASIN
         - title
         - salesrank
-        - number of positive ratings (>= 3)
-        - number of negative ratings (< 3)
         - avg rating
 
     Group Node
