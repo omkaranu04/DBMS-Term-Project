@@ -4,7 +4,7 @@ Nodes:
         - ASIN
         - title
         - salesrank
-        - avg rating
+        - avg_rating
 
     Group Node
         - group

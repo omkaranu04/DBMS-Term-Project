@@ -19,7 +19,8 @@
             <h2>Available Groups</h2>
             <ul>
                 {% for group in groups %}
-                <li>{{ group }}</li>
+                <!-- Wrap group names in clickable links -->
+                <li><a href="{{ url_for('main.group_products', group_name=group) }}">{{ group }}</a></li>
                 {% endfor %}
             </ul>
         </section>
