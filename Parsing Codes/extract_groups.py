@@ -1,8 +1,8 @@
 import csv
 
 # Define input and output file paths
-input_csv = 'Parsed Data\\product_groups.csv'  # Path to the input CSV file
-output_csv = 'Parsed Data\\groups.csv'   # Path to the output CSV file
+input_csv = '..\\Parsed Data\\product_groups.csv'  # Path to the input CSV file
+output_csv = '..\\Parsed Data\\groups.csv'   # Path to the output CSV file
 
 # Initialize a set to store unique groups
 unique_groups = set()

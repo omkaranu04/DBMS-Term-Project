@@ -4,12 +4,12 @@ from tqdm import tqdm
 
 # Define input file paths and output directory
 input_files = [
-    'Amazon Dataset\\Amazon0302.txt',
-    'Amazon Dataset\\Amazon0312.txt',
-    'Amazon Dataset\\Amazon0505.txt',
-    'Amazon Dataset\\Amazon0601.txt'
+    '..\\Amazon Dataset\\Amazon0302.txt',
+    '..\\Amazon Dataset\\Amazon0312.txt',
+    '..\\Amazon Dataset\\Amazon0505.txt',
+    '..\\Amazon Dataset\\Amazon0601.txt'
 ]
-output_directory = './Parsed Data'  # Directory to save CSV files
+output_directory = '..\\Parsed Data'  # Directory to save CSV files
 
 # Ensure output directory exists
 os.makedirs(output_directory, exist_ok=True)

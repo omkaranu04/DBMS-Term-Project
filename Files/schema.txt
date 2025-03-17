@@ -14,8 +14,6 @@ Nodes:
 
     User Node
         - Id
-        - number of reviews
-        - avg rating
     
 Edges:
     BELONGS_TO

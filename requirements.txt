@@ -1,0 +1,8 @@
+numpy
+pandas
+tqdm
+flask
+langchain
+openai
+networkx
+neo4j

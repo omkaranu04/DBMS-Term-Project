@@ -1,8 +1,8 @@
 import csv
 
 # Define input and output file paths
-input_csv = 'Parsed Data\\product_reviews.csv'  # Path to the input CSV file
-output_csv = 'Parsed Data\\customers.csv'  # Path to the output CSV file
+input_csv = '..\\Parsed Data\\product_reviews.csv'  # Path to the input CSV file
+output_csv = '..\\Parsed Data\\customers.csv'  # Path to the output CSV file
 
 # Initialize a set to store unique customers
 unique_customers = set()

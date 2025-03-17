@@ -3,14 +3,14 @@ from tqdm import tqdm
 
 # Define input CSV file paths
 csv_files = [
-    'Parsed Data\\copurchased0302.csv',
-    'Parsed Data\\copurchased0312.csv',
-    'Parsed Data\\copurchased0505.csv',
-    'Parsed Data\\copurchased0601.csv'
+    '..\\Parsed Data\\copurchased0302.csv',
+    '..\\Parsed Data\\copurchased0312.csv',
+    '..\\Parsed Data\\copurchased0505.csv',
+    '..\\Parsed Data\\copurchased0601.csv'
 ]
 
 # Output file path
-output_file = 'Parsed Data\\copurchased_frequencies.csv'
+output_file = '..\\Parsed Data\\copurchased_frequencies.csv'
 
 def calculate_edge_frequencies(csv_files, output_file):
     print("Calculating edge frequencies...")

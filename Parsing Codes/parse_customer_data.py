@@ -2,8 +2,8 @@ import csv
 from tqdm import tqdm
 
 # Define input and output file paths
-metadata_file = 'Amazon Dataset\\amazon-meta.txt'  # Replace with the actual metadata file name
-output_csv = 'Parsed Data\\product_reviews.csv'
+metadata_file = '..\\Amazon Dataset\\amazon-meta.txt'  # Replace with the actual metadata file name
+output_csv = '..\\Parsed Data\\product_reviews.csv'
 
 # Initialize data structure for product reviews
 product_reviews = []
