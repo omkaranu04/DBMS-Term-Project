@@ -12,7 +12,7 @@ class Neo4jConnection:
             result = session.run(query, parameters)
             return list(result)
 
-NEO4J_URI = "bolt://10.5.16.248:7687"
+NEO4J_URI = "bolt://localhost:7687"
 NEO4J_USER = "neo4j"                 
 NEO4J_PASSWORD = "amazon@dbms"          
 
