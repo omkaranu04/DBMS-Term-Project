@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ product.title }} - Product Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/product_detail.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <header>
+        <h1>Product Details</h1>
+        <a href="javascript:history.back()" class="back-link">Back</a>
+    </header>
+
+    <main>
+        <section class="product-info">
+            <div class="product-header">
+                <h2>{{ product.title }}</h2>
+                <div class="product-rating">
+                    <span class="stars">
+                        {% for i in range(5) %}
+                        {% if i < product.avg_rating|int %} <i class="fas fa-star"></i>
+                            {% elif i < (product.avg_rating|float) and i>= (product.avg_rating|int) %}
+                                <i class="fas fa-star-half-alt"></i>
+                                {% else %}
+                                <i class="far fa-star"></i>
+                                {% endif %}
+                                {% endfor %}
+                    </span>
+                    <span class="rating-value">{{ product.avg_rating }}</span>
+                </div>
+            </div>
+
+            <div class="product-details">
+                <div class="detail-item">
+                    <span class="label">ASIN:</span>
+                    <span class="value">{{ product.asin }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">ID:</span>
+                    <span class="value">{{ product.id }}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">Sales Rank:</span>
+                    <span class="value">{{ product.salesrank }}</span>
+                </div>
+            </div>
+
+            <div class="product-categories">
+                <h3>Categories</h3>
+                {% if categories %}
+                <ul>
+                    {% for category in categories %}
+                    <li>
+                        <a href="{{ url_for('main.products_by_category', category_name=category) }}">
+                            {{ category }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No categories found for this product.</p>
+                {% endif %}
+            </div>
+
+            <div class="similar-products">
+                <h3>Similar Products</h3>
+                {% if similar_products %}
+                <ul>
+                    {% for product in similar_products %}
+                    <li>
+                        <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}">
+                            {{ product.title }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No similar products found.</p>
+                {% endif %}
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Amazon Analysis Project</p>
+    </footer>
+
+    <!-- Chatbox Icon -->
+    <div class="chatbox-icon">
+        <i class="fas fa-comments"></i>
+    </div>
+</body>
+
+</html>
