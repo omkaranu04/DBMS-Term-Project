@@ -6,18 +6,33 @@ class RAGEngine:
         self.embedding_engine = EmbeddingEngine()
     
     def process_query(self, query):
+        # Find similar items across categories, groups, and products
         similar_items = self.embedding_engine.find_similar(query)
         
         top_categories = [item[0] for item in similar_items["categories"]]
         top_groups = [item[0] for item in similar_items["groups"]]
         
-        category_products = self._fetch_products_by_categories(top_categories)
+        # Extract direct product matches if available
+        direct_product_matches = []
+        if "products" in similar_items and similar_items["products"]:
+            direct_product_matches = [
+                {"title": item[0], "asin": item[1], "score": item[2]} 
+                for item in similar_items["products"]
+            ]
         
+        # Fetch additional products from categories and groups
+        category_products = self._fetch_products_by_categories(top_categories)
         group_products = self._fetch_products_by_groups(top_groups)
         
-        all_products = category_products + group_products
+        # Combine all products, prioritizing direct matches
+        all_products = direct_product_matches + [
+            p for p in (category_products + group_products) 
+            if p["asin"] not in [dp["asin"] for dp in direct_product_matches]
+        ]
         
-        response = self._generate_response(query, top_categories, top_groups, all_products)
+        # Generate response
+        response = self._generate_response(query, top_categories, top_groups, all_products, 
+                                          has_direct_matches=len(direct_product_matches) > 0)
         
         return {
             "response": response,
@@ -56,19 +71,33 @@ class RAGEngine:
         result = neo4j_conn.query(query, parameters=params)
         return [{"title": record["title"], "asin": record["asin"]} for record in result]
     
-    def _generate_response(self, query, categories, groups, products):
+    def _generate_response(self, query, categories, groups, products, has_direct_matches=False):
         if not products:
             return f"I couldn't find any products related to '{query}'. Try a different search term."
         
-        response = f"Based on your query '{query}', I found products in "
-        
-        if categories:
-            response += f"categories like {', '.join(categories[:2])}"
+        if has_direct_matches:
+            response = f"I found products that directly match your query '{query}'"
             
-        if groups:
+            if categories or groups:
+                response += ", as well as products in "
+                
+                if categories:
+                    response += f"categories like {', '.join(categories[:2])}"
+                    
+                if groups:
+                    if categories:
+                        response += " and "
+                    response += f"groups like {', '.join(groups[:2])}"
+        else:
+            response = f"Based on your query '{query}', I found products in "
+            
             if categories:
-                response += " and "
-            response += f"groups like {', '.join(groups[:2])}"
+                response += f"categories like {', '.join(categories[:2])}"
+                
+            if groups:
+                if categories:
+                    response += " and "
+                response += f"groups like {', '.join(groups[:2])}"
         
         response += f". I've found {len(products)} relevant products for you."
         return response
