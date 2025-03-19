@@ -203,3 +203,82 @@ def chat():
     result = rag_engine.process_query(query)
     
     return jsonify(result)
+
+@main_bp.route('/api/categories/search')
+def search_categories():
+    query = request.args.get('q', '')
+    if len(query) < 2:
+        return jsonify({"categories": []})
+    
+    search_query = """
+    MATCH (c:Category)
+    WHERE toLower(c.name) STARTS WITH toLower($query)
+    RETURN c.name AS category_name
+    ORDER BY c.name
+    LIMIT 15
+    """
+    
+    try:
+        results = neo4j_conn.query(search_query, parameters={"query": query})
+        categories = [record["category_name"] for record in results]
+        return jsonify({"categories": categories})
+    except Exception as e:
+        print(f"Error searching categories: {e}")
+        return jsonify({"error": str(e), "categories": []}), 500
+
+
+@main_bp.route('/api/common-products')
+def common_products():
+    # Get categories from query parameters (can be multiple)
+    categories = request.args.getlist('categories')
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    if not categories:
+        return jsonify({"error": "No categories provided", "products": []}), 400
+    
+    # Construct a Cypher query to find products that belong to ALL selected categories
+    query = """
+    MATCH (p:Product)
+    WHERE ALL(category IN $categories WHERE 
+          EXISTS((p)-[:BELONGS_TO]->(:Category {name: category})))
+    RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS rating
+    SKIP $skip
+    LIMIT $limit
+    """
+    
+    count_query = """
+    MATCH (p:Product)
+    WHERE ALL(category IN $categories WHERE 
+          EXISTS((p)-[:BELONGS_TO]->(:Category {name: category})))
+    RETURN count(p) AS total
+    """
+    
+    try:
+        skip = (page - 1) * per_page
+        results = neo4j_conn.query(query, parameters={
+            "categories": categories,
+            "skip": skip,
+            "limit": per_page
+        })
+        
+        count_result = neo4j_conn.query(count_query, parameters={"categories": categories})
+        total = count_result[0]["total"] if count_result else 0
+        
+        products = [{"title": record["title"], "asin": record["asin"], "rating": record["rating"]} 
+                   for record in results]
+        
+        return jsonify({
+            "products": products,
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "total_pages": (total + per_page - 1) // per_page
+        })
+    except Exception as e:
+        print(f"Error fetching common products: {e}")
+        return jsonify({"error": str(e), "products": []}), 500
+
+@main_bp.route('/category')
+def categories_page():
+    return render_template('categories.html')

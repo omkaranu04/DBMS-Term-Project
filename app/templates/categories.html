@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Filter Products by Categories</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/categories.css') }}"
+    />
+  </head>
+  <body>
+    <header>
+      <a href="/" class="back-link">← Back to Home</a>
+      <h1>Amazon Product Browser</h1>
+    </header>
+
+    <main>
+      <h2>Filter Products by Categories</h2>
+
+      <div class="category-filter">
+        <!-- Add the search container here -->
+        <div class="search-container">
+          <input
+            type="text"
+            id="category-search"
+            class="search-input"
+            placeholder="Search for categories (min. 2 characters)..."
+            autocomplete="off"
+          />
+          <div id="autocomplete-results" class="autocomplete-items"></div>
+        </div>
+
+        <div class="selected-categories">
+          <h4>Selected Categories:</h4>
+          <ul id="selected-categories-list"></ul>
+          <button id="apply-filter">Show Common Products</button>
+          <button id="clear-filter">Clear All</button>
+        </div>
+      </div>
+
+      <div id="products-container" class="product-list">
+        <!-- Products will be displayed here -->
+         
+      </div>
+    </main>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const categorySearch = document.getElementById("category-search");
+        const autocompleteResults = document.getElementById(
+          "autocomplete-results"
+        );
+        const selectedCategoriesList = document.getElementById(
+          "selected-categories-list"
+        );
+        const applyFilterBtn = document.getElementById("apply-filter");
+        const clearFilterBtn = document.getElementById("clear-filter");
+        const productsContainer = document.getElementById("products-container");
+
+        const selectedCategories = new Set();
+        let debounceTimer;
+
+        // Check for pre-selected category from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const preselectedCategory = urlParams.get("category");
+        if (preselectedCategory) {
+          addCategory(preselectedCategory);
+        }
+
+
+        // Event listeners
+        categorySearch.addEventListener("input", debounceSearch);
+
+        
+        function debounceSearch() {
+          clearTimeout(debounceTimer);
+          autocompleteResults.innerHTML = "";
+
+          const query = categorySearch.value.trim();
+          if (query.length < 2) return;
+
+          debounceTimer = setTimeout(() => {
+            fetchCategorySuggestions(query);
+          }, 300);
+        }
+
+        function fetchCategorySuggestions(query) {
+          fetch(`/api/categories/search?q=${encodeURIComponent(query)}`)
+            .then((response) => response.json())
+            .then((data) => {
+              displayAutocompleteSuggestions(data.categories, query);
+            })
+            .catch((error) => {
+              console.error("Error fetching category suggestions:", error);
+            });
+        }
+
+        function displayAutocompleteSuggestions(categories, query) {
+          autocompleteResults.innerHTML = "";
+
+          if (categories.length === 0) {
+            autocompleteResults.innerHTML = "<div>No categories found</div>";
+            return;
+          }
+
+          categories.forEach((category) => {
+            if (!selectedCategories.has(category)) {
+              const div = document.createElement("div");
+              div.textContent = category;
+              div.addEventListener("click", () => {
+                addCategory(category);
+                autocompleteResults.innerHTML = "";
+                categorySearch.value = "";
+              });
+              autocompleteResults.appendChild(div);
+            }
+          });
+        }
+
+        function addCategory(category) {
+          if (selectedCategories.has(category)) return;
+
+          selectedCategories.add(category);
+
+          const li = document.createElement("li");
+          li.innerHTML = `
+                    ${category}
+                    <button class="remove-category" data-category="${category}">×</button>
+                `;
+          selectedCategoriesList.appendChild(li);
+        }
+
+        // Remove a category from the selected list
+        selectedCategoriesList.addEventListener("click", function (e) {
+          if (e.target.classList.contains("remove-category")) {
+            const categoryToRemove = e.target.getAttribute("data-category");
+            selectedCategories.delete(categoryToRemove);
+            e.target.parentElement.remove();
+          }
+        });
+
+        // Apply the filter to show common products
+        applyFilterBtn.addEventListener("click", function () {
+          if (selectedCategories.size === 0) {
+            alert("Please select at least one category");
+            return;
+          }
+
+          // Show loading state
+          productsContainer.innerHTML =
+            '<div class="loading">Loading products...</div>';
+
+          // Convert Set to Array for the API call
+          const categoriesArray = Array.from(selectedCategories);
+
+          // Fetch products that belong to all selected categories
+          fetchCommonProducts(categoriesArray);
+        });
+
+        // Clear all selected categories
+        clearFilterBtn.addEventListener("click", function () {
+          selectedCategories.clear();
+          selectedCategoriesList.innerHTML = "";
+          productsContainer.innerHTML = "";
+        });
+
+        function fetchCommonProducts(categories) {
+          // Create URL with categories as query parameters
+          const queryParams = new URLSearchParams();
+          categories.forEach((category) => {
+            queryParams.append("categories", category);
+          });
+
+          fetch(`/api/common-products?${queryParams.toString()}`)
+            .then((response) => response.json())
+            .then((data) => {
+              displayProducts(data.products);
+            })
+            .catch((error) => {
+              console.error("Error fetching common products:", error);
+              productsContainer.innerHTML =
+                '<div class="error">Error loading products. Please try again.</div>';
+            });
+        }
+
+        function displayProducts(products) {
+          if (products.length === 0) {
+            productsContainer.innerHTML =
+              '<div class="no-products">No common products found for the selected categories.</div>';
+            return;
+          }
+
+          productsContainer.innerHTML = "";
+          products.forEach((product) => {
+            const productElement = document.createElement("div");
+            productElement.className = "product-item";
+            productElement.innerHTML = `
+                        <h3 class="product-title">${product.title}</h3>
+                        <p class="product-asin">ASIN: ${product.asin}</p>
+                        <a href="/product/${product.asin}" class="product-link">View Details</a>
+                    `;
+            productsContainer.appendChild(productElement);
+          });
+        }
+      });
+    </script>
+  </body>
+</html>
