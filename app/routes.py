@@ -1,11 +1,15 @@
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request
 from config import neo4j_conn
 
 main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def home():
-    query = "MATCH (g:Group) RETURN g.name AS group_name"
+    query = """
+    MATCH (g:Group)
+    RETURN g.name AS group_name
+    ORDER BY g.name
+    """
     
     try:
         results = neo4j_conn.query(query)
@@ -16,32 +20,73 @@ def home():
     
     return render_template('home_page.html', groups=groups)
 
+def get_pagination_range(page, total_pages, block_size=5):
+    """
+    Calculate the range of page numbers to display in pagination.
+    """
+    page = max(1, min(page, total_pages))
+    start = max(1, page - block_size // 2)
+    end = min(total_pages, start + block_size - 1)
+    if end - start + 1 < block_size:
+        start = max(1, end - block_size + 1)
+    return range(start, end + 1)
+
 @main_bp.route('/group/<group_name>')
 def group_products(group_name):
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
     query = """
-    CALL apoc.cypher.run('
-        MATCH (p:Product)-[:PART_OF]->(g:Group {name: $group_name})
-        RETURN p.title AS product_title, p.ASIN AS product_asin
-        ORDER BY p.title
-    ', {group_name: $group_name}) YIELD value
-    RETURN value.product_title AS product_title, value.product_asin AS product_asin
+    MATCH (g:Group {name: $group_name})
+    CALL apoc.path.expandConfig(g, {
+        relationshipFilter: "<PART_OF",
+        minLevel: 1,
+        maxLevel: 1
+    }) YIELD path
+    WITH last(nodes(path)) as p
+    RETURN p.title AS product_title, p.ASIN AS product_asin
+    ORDER BY p.title
+    SKIP $skip LIMIT $limit
     """
-    
+
+
     try:
-        result = neo4j_conn.query(query, parameters={"group_name": group_name})
+        result = neo4j_conn.query(query, parameters={
+            "group_name": group_name,
+            "skip": (page - 1) * per_page,
+            "limit": per_page
+        })
         products = [{"title": record["product_title"], "asin": record["product_asin"]} for record in result]
+        
+        # Get total count for pagination
+        count_query = """
+        MATCH (g:Group {name: $group_name})
+        CALL apoc.path.subgraphNodes(g, {
+            relationshipFilter: "<PART_OF",
+            minLevel: 1,
+            maxLevel: 1
+        }) YIELD node
+        RETURN count(node) AS total
+        """
+        count_result = neo4j_conn.query(count_query, parameters={"group_name": group_name})
+        total = count_result[0]["total"]
+        
+        total_pages = (total + per_page - 1) // per_page
+        pagination_range = get_pagination_range(page, total_pages)
+        
+        return render_template('products_by_group.html', group_name=group_name, products=products,
+                               page=page, per_page=per_page, total=total,
+                               total_pages=total_pages, pagination_range=pagination_range)
     except Exception as e:
         print(f"Error fetching products for group {group_name}: {e}")
-        products = [] 
+        return render_template('products_by_group.html', group_name=group_name, products=[])
     
-    return render_template('products_by_group.html', group_name=group_name, products=products)
-
 @main_bp.route('/product/<product_asin>')
 def product_detail(product_asin):
     product_query = """
     MATCH (p:Product {ASIN: $product_asin})
     RETURN p.title AS title, p.ASIN AS asin, p.Id AS id, 
            p.salesrank AS salesrank, p.avg_rating AS avg_rating
+    LIMIT 1
     """
     
     categories_query = """
@@ -50,9 +95,17 @@ def product_detail(product_asin):
     """
     
     similar_products_query = """
-    MATCH (p:Product {ASIN: $product_asin})-[:SIMILAR]->(s:Product)
+    MATCH (p:Product {ASIN: $product_asin})
+    CALL apoc.path.expandConfig(p, {
+        relationshipFilter: "SIMILAR",
+        minLevel: 1,
+        maxLevel: 1,
+        limit: 10
+    }) YIELD path
+    WITH last(nodes(path)) as s
     RETURN s.title AS title, s.ASIN AS asin
     """
+
     
     try:
         product_result = neo4j_conn.query(product_query, parameters={"product_asin": product_asin})
@@ -74,17 +127,49 @@ def product_detail(product_asin):
     
 @main_bp.route('/category/<category_name>')
 def products_by_category(category_name):
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
     query = """
-    MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+    MATCH (c:Category {name: $category_name})
+    CALL apoc.path.expandConfig(c, {
+        relationshipFilter: "<BELONGS_TO",
+        minLevel: 1,
+        maxLevel: 1
+    }) YIELD path
+    WITH last(nodes(path)) as p
     RETURN p.title AS product_title, p.ASIN AS product_asin
     ORDER BY p.title
+    SKIP $skip LIMIT $limit
     """
-    
+
     try:
-        result = neo4j_conn.query(query, parameters={"category_name": category_name})
+        result = neo4j_conn.query(query, parameters={
+            "category_name": category_name,
+            "skip": (page - 1) * per_page,
+            "limit": per_page
+        })
         products = [{"title": record["product_title"], "asin": record["product_asin"]} for record in result]
+        
+        # Get total count for pagination
+        count_query = """
+        MATCH (c:Category {name: $category_name})
+        CALL apoc.path.subgraphNodes(c, {
+            relationshipFilter: "<BELONGS_TO",
+            minLevel: 1,
+            maxLevel: 1
+        }) YIELD node
+        RETURN count(node) AS total
+        """
+
+        count_result = neo4j_conn.query(count_query, parameters={"category_name": category_name})
+        total = count_result[0]["total"]
+        
+        total_pages = (total + per_page - 1) // per_page
+        pagination_range = get_pagination_range(page, total_pages)
+        
+        return render_template('products_by_category.html', category_name=category_name, products=products,
+                               page=page, per_page=per_page, total=total,
+                               total_pages=total_pages, pagination_range=pagination_range)
     except Exception as e:
         print(f"Error fetching products for category {category_name}: {e}")
-        products = []
-    
-    return render_template('products_by_category.html', category_name=category_name, products=products)
+        return render_template('products_by_category.html', category_name=category_name, products=[])

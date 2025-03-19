@@ -1,41 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Products in {{ group_name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/products_by_group.css') }}">
-</head>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/products_by_group.css') }}"
+    />
+  </head>
 
-<body>
+  <body>
     <header>
-        <h1>Products in Group: {{ group_name }}</h1>
-        <a href="/" class="back-link">Back to Groups</a>
+      <h1>Products in Group: {{ group_name }}</h1>
+      <a href="/" class="back-link">Back to Groups</a>
     </header>
 
     <main>
-        <section class="product-list">
-            {% if products %}
-            <ul>
-                {% for product in products %}
-                <li>
-                    <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}" class="product-link">
-                        <h2>{{ product.title }}</h2>
-                        <p>ASIN: {{ product.asin }}</p>
-                    </a>
-                </li>
-                {% endfor %}
-            </ul>
-            {% else %}
-            <p>No products found for this group.</p>
-            {% endif %}
-        </section>
+      {% if products %}
+      <section class="product-list">
+        {% for product in products %}
+        <div class="product-item">
+          <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}" class="product-link">
+            <h2 class="product-title">{{ product.title }}</h2>
+            <p class="product-asin">ASIN: {{ product.asin }}</p>
+          </a>
+        </div>
+        {% endfor %}
+      </section>
+
+      <div class="pagination">
+        {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="pagination-link">&laquo; Previous</a>
+        {% endif %}
+        
+        {% for p in pagination_range %}
+          {% if p == page %}
+          <span class="pagination-link active">{{ p }}</span>
+          {% else %}
+          <a href="?page={{ p }}" class="pagination-link">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+        
+        {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}" class="pagination-link">Next &raquo;</a>
+        {% endif %}
+      </div>
+      {% else %}
+      <p>No products found.</p>
+      {% endif %}
     </main>
 
     <footer>
-        <p>&copy; 2025 Amazon Analysis Project</p>
+      <p>&copy; 2025 Amazon Analysis Project</p>
     </footer>
-</body>
-
+    <div class="chatbox-icon">
+        <i class="fas fa-comments"></i>
+    </div>
+  </body>
 </html>
