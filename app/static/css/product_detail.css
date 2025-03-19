@@ -180,3 +180,42 @@ main {
 .similar-products a:hover {
     text-decoration: underline;
 }
+
+.copurchased-products {
+    margin-top: 2rem;
+    border-top: 1px solid #eee;
+    padding-top: 1.5rem;
+}
+
+.copurchased-products h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #333;
+    font-size: 1.3rem;
+}
+
+.copurchased-products ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+.copurchased-products li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.copurchased-products a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.copurchased-products a:hover {
+    text-decoration: underline;
+}
+
+.copurchased-products .frequency {
+    color: #666;
+    font-size: 0.9rem;
+    margin-left: 0.5rem;
+}

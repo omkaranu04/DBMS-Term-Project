@@ -66,6 +66,24 @@
                 {% endif %}
             </div>
 
+            <div class="copurchased-products">
+                <h3>Frequently Bought Together</h3>
+                {% if copurchased_products %}
+                <ul>
+                    {% for product in copurchased_products %}
+                    <li>
+                        <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}">
+                            {{ product.title }}
+                        </a>
+                        <span class="frequency">(Purchased together {{ product.frequency }} times)</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p>No co-purchased products found.</p>
+                {% endif %}
+            </div>
+
             <div class="similar-products">
                 <h3>Similar Products</h3>
                 {% if similar_products %}

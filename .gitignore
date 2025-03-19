@@ -2,3 +2,4 @@ Amazon Dataset/
 Parsed Data/
 myenv/
 __pycache__/
+*.pyc
