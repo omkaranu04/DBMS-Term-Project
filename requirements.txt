@@ -6,3 +6,4 @@ langchain
 openai
 networkx
 neo4j
+sentence_transformers
