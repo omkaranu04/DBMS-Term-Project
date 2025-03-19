@@ -20,7 +20,7 @@ def home():
     
     return render_template('home_page.html', groups=groups)
 
-def get_pagination_range(page, total_pages, block_size=5):
+def get_pagination_range(page, total_pages, block_size=5): # for pagination in the pages with high number of products
     """
     Calculate the range of page numbers to display in pagination.
     """
@@ -131,7 +131,6 @@ def product_detail(product_asin):
     MATCH (p:Product {ASIN: $product_asin})
     RETURN p.title AS title, p.ASIN AS asin, p.Id AS id, 
            p.salesrank AS salesrank, p.avg_rating AS avg_rating
-    LIMIT 1
     """
     
     categories_query = """
@@ -140,21 +139,21 @@ def product_detail(product_asin):
     """
     
     similar_products_query = """
-    MATCH (p:Product {ASIN: $product_asin})
-    CALL apoc.path.expandConfig(p, {
-        relationshipFilter: "SIMILAR",
-        minLevel: 1,
-        maxLevel: 1,
-        limit: 10
-    }) YIELD path
-    WITH last(nodes(path)) as s
+    MATCH (p:Product {ASIN: $product_asin})-[:SIMILAR]->(s:Product)
     RETURN s.title AS title, s.ASIN AS asin
     """
-
+    
     copurchased_query = """
     MATCH (p:Product {ASIN: $product_asin})-[r:COPURCHASED_WITH]->(c:Product)
     RETURN c.title AS title, c.ASIN AS asin, r.Frequency AS frequency
     ORDER BY r.Frequency DESC
+    """
+    
+    reviews_query = """
+    MATCH (u:Consumer)-[r:REVIEWED]->(p:Product {ASIN: $product_asin})
+    RETURN u.Customer AS user_id, r.Date AS date, r.Rating AS rating, 
+           r.Helpful AS helpful, r.Votes AS votes
+    ORDER BY r.Date DESC
     """
     
     try:
@@ -174,11 +173,19 @@ def product_detail(product_asin):
         copurchased_products = [{"title": record["title"], "asin": record["asin"], "frequency": record["frequency"]} 
                                for record in copurchased_result]
         
+        reviews_result = neo4j_conn.query(reviews_query, parameters={"product_asin": product_asin})
+        reviews = [{"user_id": record["user_id"], 
+                   "date": record["date"], 
+                   "rating": record["rating"],
+                   "helpful": record["helpful"],
+                   "votes": record["votes"]} for record in reviews_result]
+        
         return render_template('product_detail.html', 
                               product=product, 
                               categories=categories, 
                               similar_products=similar_products,
-                              copurchased_products=copurchased_products)
+                              copurchased_products=copurchased_products,
+                              reviews=reviews)
     except Exception as e:
         print(f"Error fetching product details for {product_asin}: {e}")
         return "An error occurred", 500
