@@ -3,3 +3,5 @@ Parsed Data/
 myenv/
 __pycache__/
 *.pyc
+*.pkl
+*.bin
