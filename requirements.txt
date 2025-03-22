@@ -3,3 +3,7 @@ pandas
 tqdm
 flask
 neo4j
+faiss-cpu
+sentence-transformers
+clean-text
+unidecode

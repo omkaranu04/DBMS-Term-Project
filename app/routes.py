@@ -1,7 +1,10 @@
 from flask import Blueprint, render_template, request, jsonify
 from config import neo4j_conn
+from rag_engine import RAGEngine
 
 main_bp = Blueprint('main', __name__)
+
+rag_engine = RAGEngine()
 
 @main_bp.route('/')
 def home():
@@ -223,3 +226,19 @@ def product_detail(product_asin):
     except Exception as e:
         print(f"Error fetching product details for {product_asin}: {e}")
         return "An error occurred", 500
+    
+# CHATBOX ROUTE
+@main_bp.route('/chat', methods=['POST'])
+def chat():
+    try:
+        query = request.json.get('query', '')
+        if not query:
+            return jsonify({"error": "No query provided"}), 400
+        
+        # Process query using RAG engine
+        result = rag_engine.process_query(query)
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error in chat endpoint: {str(e)}")
+        return jsonify({"error": str(e)}), 500
