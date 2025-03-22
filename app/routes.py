@@ -34,6 +34,7 @@ def get_pagination_range(page, total_pages, block_size=5): # for pagination in t
         start = max(1, end - block_size + 1)
     return range(start, end + 1)
 
+# GROUP PRODUCTS ROUTE
 @main_bp.route('/group/<group_name>')
 def group_products(group_name):
     page = request.args.get('page', 1, type=int)
@@ -80,6 +81,30 @@ def group_products(group_name):
         print(f"Error fetching products for group {group_name}: {e}")
         return render_template('products_by_group.html', group_name=group_name, products=[])
     
+# FOR CATEGORY PRODUCTS ROUTE
+@main_bp.route('/category/<category_name>')
+def products_by_category(category_name):
+    # Query to fetch products belonging to the selected category
+    query = """
+    MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+    RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
+           p.salesrank AS salesrank, p.total_score AS total_score
+    ORDER BY p.total_score DESC
+    """
+    
+    try:
+        result = neo4j_conn.query(query, parameters={"category_name": category_name})
+        products = [{"title": record["title"], 
+                    "asin": record["asin"], 
+                    "avg_rating": record["avg_rating"],
+                    "salesrank": record["salesrank"],
+                    "total_score": record["total_score"]} for record in result]
+    except Exception as e:
+        print(f"Error fetching products for category {category_name}: {e}")
+        products = []
+    
+    return render_template('products_by_category.html', category_name=category_name, products=products)
+    
 # CATEGORY SEARCH ROUTE
 @main_bp.route('/api/categories/search')
 def search_categories():
@@ -89,7 +114,7 @@ def search_categories():
     
     search_query = """
     MATCH (c:Category)
-    WHERE toLower(c.name) STARTS WITH toLower($query)
+    WHERE c.name =~ ('(?i)' + $query + '.*')
     RETURN c.name AS category_name
     ORDER BY c.name
     LIMIT 15
@@ -155,9 +180,9 @@ def common_products():
         print(f"Error fetching common products: {e}")
         return jsonify({"error": str(e), "products": []}), 500
 
-@main_bp.route('/category')
+@main_bp.route('/category', methods=['GET'])
 def categories_page():
-    return render_template('products_by_category.html')
+    return render_template('multiple_category_search.html')
 
 # PRODUCT PAGE ROUTE
 @main_bp.route('/product/<product_asin>')
@@ -235,7 +260,7 @@ def chat():
         if not query:
             return jsonify({"error": "No query provided"}), 400
         
-        # Process query using RAG engine
+        # Process the query using the RAG engine
         result = rag_engine.process_query(query)
         
         return jsonify(result)

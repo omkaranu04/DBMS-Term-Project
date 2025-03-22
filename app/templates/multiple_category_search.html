@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Products by Categories</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/multiple_category_search.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <header>
+        <h1>Search Products by Categories</h1>
+        <a href="javascript:history.back()" class="back-link">Back</a>
+    </header>
+
+    <main>
+        <section class="search-section">
+            <div class="search-container">
+                <div class="search-box">
+                    <input type="text" id="category-search" placeholder="Type to search categories...">
+                    <button id="add-category"><i class="fas fa-plus"></i></button>
+                </div>
+                <div id="search-results" class="search-results"></div>
+            </div>
+
+            <div class="selected-categories">
+                <h3>Selected Categories</h3>
+                <ul id="selected-categories-list"></ul>
+                <button id="search-products" class="search-button" disabled>Find Common Products</button>
+            </div>
+        </section>
+
+        <section class="results-section">
+            <h2>Products in Selected Categories</h2>
+            <div id="products-container" class="products-grid"></div>
+            <div id="pagination" class="pagination"></div>
+            <div id="no-results" class="no-results hidden">
+                <i class="fas fa-search"></i>
+                <p>No products found matching all selected categories.</p>
+            </div>
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Loading products...</p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Amazon Analysis Project</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const categorySearchInput = document.getElementById('category-search');
+            const searchResultsContainer = document.getElementById('search-results');
+            const addCategoryButton = document.getElementById('add-category');
+            const selectedCategoriesList = document.getElementById('selected-categories-list');
+            const searchProductsButton = document.getElementById('search-products');
+            const productsContainer = document.getElementById('products-container');
+            const paginationContainer = document.getElementById('pagination');
+            const noResultsMessage = document.getElementById('no-results');
+            const loadingIndicator = document.getElementById('loading');
+
+            let selectedCategories = [];
+            let currentPage = 1;
+
+            // Search categories as user types
+            categorySearchInput.addEventListener('input', function () {
+                const query = this.value.trim();
+                if (query.length < 2) {
+                    searchResultsContainer.innerHTML = '';
+                    return;
+                }
+
+                fetch(`/api/categories/search?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        searchResultsContainer.innerHTML = '';
+
+                        if (data.categories.length === 0) {
+                            searchResultsContainer.innerHTML = '<p class="no-matches">No matching categories found</p>';
+                            return;
+                        }
+
+                        data.categories.forEach(category => {
+                            if (!selectedCategories.includes(category)) {
+                                const categoryItem = document.createElement('div');
+                                categoryItem.className = 'search-result-item';
+                                categoryItem.textContent = category;
+                                categoryItem.addEventListener('click', function () {
+                                    addCategory(category);
+                                    searchResultsContainer.innerHTML = '';
+                                    categorySearchInput.value = '';
+                                });
+                                searchResultsContainer.appendChild(categoryItem);
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error searching categories:', error);
+                        searchResultsContainer.innerHTML = '<p class="error">Error searching categories</p>';
+                    });
+            });
+
+            // Add category when pressing Enter
+            categorySearchInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter' && this.value.trim().length >= 2) {
+                    addCategoryButton.click();
+                }
+            });
+
+            // Add category button click
+            addCategoryButton.addEventListener('click', function () {
+                const query = categorySearchInput.value.trim();
+                if (query.length >= 2) {
+                    fetch(`/api/categories/search?q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.categories.length > 0) {
+                                // Add the first matching category
+                                addCategory(data.categories[0]);
+                                searchResultsContainer.innerHTML = '';
+                                categorySearchInput.value = '';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error adding category:', error);
+                        });
+                }
+            });
+
+            // Search products button click
+            searchProductsButton.addEventListener('click', function () {
+                currentPage = 1;
+                fetchProducts();
+            });
+
+            // Function to add a category to the selected list
+            function addCategory(category) {
+                if (!selectedCategories.includes(category)) {
+                    selectedCategories.push(category);
+
+                    const categoryItem = document.createElement('li');
+                    categoryItem.innerHTML = `
+                        <span>${category}</span>
+                        <button class="remove-category" data-category="${category}">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    selectedCategoriesList.appendChild(categoryItem);
+
+                    // Add event listener to remove button
+                    categoryItem.querySelector('.remove-category').addEventListener('click', function () {
+                        const categoryToRemove = this.getAttribute('data-category');
+                        selectedCategories = selectedCategories.filter(cat => cat !== categoryToRemove);
+                        categoryItem.remove();
+                        updateSearchButtonState();
+                    });
+
+                    updateSearchButtonState();
+                }
+            }
+
+            // Update search button state based on selected categories
+            function updateSearchButtonState() {
+                searchProductsButton.disabled = selectedCategories.length === 0;
+                if (selectedCategories.length === 0) {
+                    productsContainer.innerHTML = '';
+                    paginationContainer.innerHTML = '';
+                    noResultsMessage.classList.add('hidden');
+                }
+            }
+
+            // Fetch products matching all selected categories
+            function fetchProducts() {
+                if (selectedCategories.length === 0) return;
+
+                loadingIndicator.classList.remove('hidden');
+                noResultsMessage.classList.add('hidden');
+                productsContainer.innerHTML = '';
+                paginationContainer.innerHTML = '';
+
+                const categoriesParam = selectedCategories.map(cat => `categories=${encodeURIComponent(cat)}`).join('&');
+
+                fetch(`/api/common-products?${categoriesParam}&page=${currentPage}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        loadingIndicator.classList.add('hidden');
+
+                        if (data.products.length === 0) {
+                            noResultsMessage.classList.remove('hidden');
+                            return;
+                        }
+
+                        // Display products
+                        data.products.forEach(product => {
+                            const productCard = document.createElement('div');
+                            productCard.className = 'product-card';
+                            productCard.innerHTML = `
+                                <a href="/product/${product.asin}" class="product-link">
+                                    <div class="product-image">
+                                        <i class="fas fa-box product-icon"></i>
+                                    </div>
+                                    <div class="product-info">
+                                        <h3 class="product-title">${product.title}</h3>
+                                        <div class="product-rating">
+                                            <span class="stars">${generateStarRating(product.rating)}</span>
+                                            <span class="rating-value">${product.rating}</span>
+                                        </div>
+                                        <p class="product-asin">ASIN: ${product.asin}</p>
+                                    </div>
+                                </a>
+                            `;
+                            productsContainer.appendChild(productCard);
+                        });
+
+                        // Create pagination
+                        if (data.total_pages > 1) {
+                            createPagination(data.page, data.total_pages);
+                        }
+                    })
+                    .catch(error => {
+                        loadingIndicator.classList.add('hidden');
+                        console.error('Error fetching products:', error);
+                        productsContainer.innerHTML = '<p class="error">Error fetching products. Please try again.</p>';
+                    });
+            }
+
+            // Create pagination controls
+            function createPagination(currentPage, totalPages) {
+                paginationContainer.innerHTML = '';
+
+                // Previous button
+                const prevButton = document.createElement('button');
+                prevButton.className = 'pagination-button';
+                prevButton.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                prevButton.disabled = currentPage === 1;
+                prevButton.addEventListener('click', function () {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        fetchProducts();
+                    }
+                });
+                paginationContainer.appendChild(prevButton);
+
+                // Page numbers
+                const startPage = Math.max(1, currentPage - 2);
+                const endPage = Math.min(totalPages, startPage + 4);
+
+                for (let i = startPage; i <= endPage; i++) {
+                    const pageButton = document.createElement('button');
+                    pageButton.className = 'pagination-button' + (i === currentPage ? ' active' : '');
+                    pageButton.textContent = i;
+                    pageButton.addEventListener('click', function () {
+                        currentPage = i;
+                        fetchProducts();
+                    });
+                    paginationContainer.appendChild(pageButton);
+                }
+
+                // Next button
+                const nextButton = document.createElement('button');
+                nextButton.className = 'pagination-button';
+                nextButton.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                nextButton.disabled = currentPage === totalPages;
+                nextButton.addEventListener('click', function () {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        fetchProducts();
+                    }
+                });
+                paginationContainer.appendChild(nextButton);
+            }
+
+            // Generate star rating HTML
+            function generateStarRating(rating) {
+                const fullStars = Math.floor(rating);
+                const halfStar = rating % 1 >= 0.5;
+                const emptyStars = 5 - fullStars - (halfStar ? 1 : 0);
+
+                let starsHtml = '';
+                for (let i = 0; i < fullStars; i++) {
+                    starsHtml += '<i class="fas fa-star"></i>';
+                }
+                if (halfStar) {
+                    starsHtml += '<i class="fas fa-star-half-alt"></i>';
+                }
+                for (let i = 0; i < emptyStars; i++) {
+                    starsHtml += '<i class="far fa-star"></i>';
+                }
+
+                return starsHtml;
+            }
+
+            // Close search results when clicking outside
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('.search-container')) {
+                    searchResultsContainer.innerHTML = '';
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
