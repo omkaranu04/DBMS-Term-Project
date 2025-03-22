@@ -105,7 +105,7 @@ def products_by_category(category_name):
     
     return render_template('products_by_category.html', category_name=category_name, products=products)
     
-# CATEGORY SEARCH ROUTE
+# MULTIPLE CATEGORY SEARCH ROUTE
 @main_bp.route('/api/categories/search')
 def search_categories():
     query = request.args.get('q', '')

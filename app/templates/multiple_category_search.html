@@ -177,6 +177,8 @@
             function fetchProducts() {
                 if (selectedCategories.length === 0) return;
 
+                const pageToFetch = window.currentPage || currentPage;
+
                 loadingIndicator.classList.remove('hidden');
                 noResultsMessage.classList.add('hidden');
                 productsContainer.innerHTML = '';
@@ -184,7 +186,7 @@
 
                 const categoriesParam = selectedCategories.map(cat => `categories=${encodeURIComponent(cat)}`).join('&');
 
-                fetch(`/api/common-products?${categoriesParam}&page=${currentPage}`)
+                fetch(`/api/common-products?${categoriesParam}&page=${pageToFetch}`)
                     .then(response => response.json())
                     .then(data => {
                         loadingIndicator.classList.add('hidden');
@@ -239,8 +241,8 @@
                 prevButton.disabled = currentPage === 1;
                 prevButton.addEventListener('click', function () {
                     if (currentPage > 1) {
-                        currentPage--;
-                        fetchProducts();
+                        window.currentPage = currentPage - 1;
+                        fetchProducts(); // Fetch products for the updated page
                     }
                 });
                 paginationContainer.appendChild(prevButton);
@@ -254,7 +256,7 @@
                     pageButton.className = 'pagination-button' + (i === currentPage ? ' active' : '');
                     pageButton.textContent = i;
                     pageButton.addEventListener('click', function () {
-                        currentPage = i;
+                        window.currentPage = i; // Update the global currentPage variable
                         fetchProducts();
                     });
                     paginationContainer.appendChild(pageButton);
@@ -267,8 +269,8 @@
                 nextButton.disabled = currentPage === totalPages;
                 nextButton.addEventListener('click', function () {
                     if (currentPage < totalPages) {
-                        currentPage++;
-                        fetchProducts();
+                        window.currentPage = currentPage + 1;
+                        fetchProducts(); // Fetch products for the updated page
                     }
                 });
                 paginationContainer.appendChild(nextButton);
