@@ -38,7 +38,7 @@ def get_pagination_range(page, total_pages, block_size=5): # for pagination in t
 @main_bp.route('/group/<group_name>')
 def group_products(group_name):
     page = request.args.get('page', 1, type=int)
-    per_page = 20
+    per_page = 21
     query = """
     MATCH (g:Group {name: $group_name})
     CALL apoc.path.expandConfig(g, {
@@ -84,26 +84,55 @@ def group_products(group_name):
 # FOR CATEGORY PRODUCTS ROUTE
 @main_bp.route('/category/<category_name>')
 def products_by_category(category_name):
-    # Query to fetch products belonging to the selected category
+    page = request.args.get('page', 1, type=int)
+    items_per_page = 21
+    
+    # Query to fetch products belonging to the selected category with pagination
     query = """
     MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
     RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
            p.salesrank AS salesrank, p.total_score AS total_score
     ORDER BY p.total_score DESC
+    SKIP $skip LIMIT $limit
     """
     
     try:
-        result = neo4j_conn.query(query, parameters={"category_name": category_name})
+        skip = (page - 1) * items_per_page
+        result = neo4j_conn.query(query, parameters={
+            "category_name": category_name, 
+            "skip": skip, 
+            "limit": items_per_page
+        })
+        
         products = [{"title": record["title"], 
                     "asin": record["asin"], 
                     "avg_rating": record["avg_rating"],
                     "salesrank": record["salesrank"],
                     "total_score": record["total_score"]} for record in result]
+        
+        # Query to count total products in the category
+        count_query = """
+        MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+        RETURN count(p) AS total_products
+        """
+        count_result = neo4j_conn.query(count_query, parameters={"category_name": category_name})
+        total_products = count_result[0]["total_products"] if count_result else 0
+        
+        total_pages = (total_products + items_per_page - 1) // items_per_page
+        pagination_range = get_pagination_range(page, total_pages)
+        
     except Exception as e:
         print(f"Error fetching products for category {category_name}: {e}")
         products = []
+        total_pages = 1
+        pagination_range = range(1, 2)
     
-    return render_template('products_by_category.html', category_name=category_name, products=products)
+    return render_template('products_by_category.html', 
+                          category_name=category_name, 
+                          products=products,
+                          page=page,
+                          total_pages=total_pages,
+                          pagination_range=pagination_range)
     
 # MULTIPLE CATEGORY SEARCH ROUTE
 @main_bp.route('/api/categories/search')
@@ -114,10 +143,10 @@ def search_categories():
     
     search_query = """
     MATCH (c:Category)
-    WHERE c.name =~ ('(?i)' + $query + '.*')
+    WHERE toLower(c.name) STARTS WITH toLower($query)
     RETURN c.name AS category_name
     ORDER BY c.name
-    LIMIT 15
+    LIMIT 10
     """
     
     try:
@@ -133,15 +162,20 @@ def search_categories():
 def common_products():
     categories = request.args.getlist('categories')
     page = request.args.get('page', 1, type=int)
-    per_page = 20
+    per_page = 21
     
     if not categories:
         return jsonify({"error": "No categories provided", "products": []}), 400
     
     query = """
     MATCH (p:Product)
-    WHERE ALL(category IN $categories WHERE 
-          EXISTS((p)-[:BELONGS_TO]->(:Category {name: category})))
+    WHERE EXISTS {
+      MATCH (p)-[:BELONGS_TO]->(:Category {name: $categories[0]})
+    }
+    AND ALL(category IN $categories[1..] WHERE 
+          EXISTS {
+            MATCH (p)-[:BELONGS_TO]->(:Category {name: category})
+          })
     RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS rating
     ORDER BY p.total_score DESC
     SKIP $skip
@@ -150,8 +184,13 @@ def common_products():
     
     count_query = """
     MATCH (p:Product)
-    WHERE ALL(category IN $categories WHERE 
-          EXISTS((p)-[:BELONGS_TO]->(:Category {name: category})))
+    WHERE EXISTS {
+      MATCH (p)-[:BELONGS_TO]->(:Category {name: $categories[0]})
+    }
+    AND ALL(category IN $categories[1..] WHERE 
+          EXISTS {
+            MATCH (p)-[:BELONGS_TO]->(:Category {name: category})
+          })
     RETURN count(p) AS total
     """
     

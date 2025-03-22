@@ -6,136 +6,203 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{{ product.title }} - Product Details</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/product_detail.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/home_page.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 
 <body>
   <header>
-    <h1>Product Details</h1>
-    <a href="javascript:history.back()" class="back-link">Back</a>
+    <div class="logo-container">
+      <h1>Amazon SNAP - Graph Database</h1>
+    </div>
+    <nav>
+      <a href="{{ url_for('main.home') }}" class="nav-button">
+        <i class="fas fa-home"></i> Home
+      </a>
+      <a href="{{ url_for('main.categories_page') }}" class="nav-button">
+        <i class="fas fa-search"></i> Search by Category
+      </a>
+    </nav>
   </header>
 
   <main>
-    <section class="product-info">
+    <div class="breadcrumb">
+      <a href="{{ url_for('main.home') }}">Home</a>
+      <i class="fas fa-chevron-right"></i>
+      <a href="javascript:history.back()">Back</a>
+      <i class="fas fa-chevron-right"></i>
+      <span>Product Details</span>
+    </div>
+
+    <section class="product-container">
       <div class="product-header">
         <h2>{{ product.title }}</h2>
         <div class="product-rating">
           <span class="stars">
-            {% for i in range(5) %} {% if i < product.avg_rating|int %} <i class="fas fa-star"></i>
-              {% elif i < (product.avg_rating|float) and i>=
-                (product.avg_rating|int) %}
+            {% for i in range(5) %}
+            {% if i < product.avg_rating|int %} <i class="fas fa-star"></i>
+              {% elif i < (product.avg_rating|float) and i>= (product.avg_rating|int) %}
                 <i class="fas fa-star-half-alt"></i>
                 {% else %}
                 <i class="far fa-star"></i>
-                {% endif %} {% endfor %}
+                {% endif %}
+                {% endfor %}
           </span>
           <span class="rating-value">{{ product.avg_rating }}</span>
         </div>
       </div>
 
-      <div class="product-details">
-        <div class="detail-item">
-          <span class="label">ASIN:</span>
-          <span class="value">{{ product.asin }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">ID:</span>
-          <span class="value">{{ product.id }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Sales Rank:</span>
-          <span class="value">{{ product.salesrank }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">Total Score:</span>
-          <span class="value">{{ product.total_score }}</span>
-        </div>
-      </div>
-
-      <div class="product-categories">
-        <h3>Categories</h3>
-        {% if categories %}
-        <ul>
-          {% for category in categories %}
-          <li>
-            <a href="{{ url_for('main.products_by_category', category_name=category) }}">{{ category }}</a>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p>No categories found for this product.</p>
-        {% endif %}
-      </div>
-
-      <div class="product-reviews">
-        <h3>Customer Reviews</h3>
-        {% if reviews %}
-        <ul class="reviews-list">
-          {% for review in reviews %}
-          <li class="review-item">
-            <div class="review-header">
-              <span class="user-id">User: {{ review.user_id }}</span>
-              <span class="review-date">{{ review.date }}</span>
+      <div class="product-content">
+        <!-- Left Column -->
+        <div class="product-main">
+          <!-- Product Details Card -->
+          <div class="product-card">
+            <div class="product-icon">
+              <i class="fas fa-box-open"></i>
             </div>
-            <div class="rating">
-              Rating: {% for i in range(5) %} {% if i < review.rating|int %} <i class="fas fa-star"></i>
-                {% else %}
-                <i class="far fa-star"></i>
-                {% endif %} {% endfor %}
-                <span class="rating-value">({{ review.rating }})</span>
+            <div class="product-details">
+              <div class="detail-item">
+                <span class="label">ASIN:</span>
+                <span class="value">{{ product.asin }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">ID:</span>
+                <span class="value">{{ product.id }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Sales Rank:</span>
+                <span class="value">{{ product.salesrank }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="label">Total Score:</span>
+                <span class="value">{{ product.total_score }}</span>
+              </div>
             </div>
-            <div class="review-stats">
-              <span class="helpful">{{ review.helpful }} of {{ review.votes }} people found this
-                helpful</span>
+          </div>
+
+          <!-- Categories Card -->
+          <div class="product-categories card">
+            <div class="card-header">
+              <h3><i class="fas fa-tags"></i> Categories</h3>
             </div>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p>No reviews found for this product.</p>
-        {% endif %}
-      </div>
+            <div class="card-content">
+              {% if categories %}
+              <ul class="categories-list">
+                {% for category in categories %}
+                <li>
+                  <a href="{{ url_for('main.products_by_category', category_name=category) }}">
+                    <i class="fas fa-tag"></i> {{ category }}
+                  </a>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="no-data">No categories found for this product.</p>
+              {% endif %}
+            </div>
+          </div>
 
-      <div class="copurchased-products">
-        <h3>Frequently Bought Together</h3>
-        {% if copurchased_products %}
-        <ul>
-          {% for product in copurchased_products %}
-          <li>
-            <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}">
-              {{ product.title }}
-            </a>
-            <span class="frequency">(Purchased together {{ product.frequency }} times)</span>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p>No co-purchased products found.</p>
-        {% endif %}
-      </div>
+          <!-- Frequently Bought Together Card -->
+          <div class="copurchased-products card">
+            <div class="card-header">
+              <h3><i class="fas fa-shopping-cart"></i> Frequently Bought Together</h3>
+            </div>
+            <div class="card-content">
+              {% if copurchased_products %}
+              <ul class="product-list">
+                {% for product in copurchased_products %}
+                <li class="related-product-item">
+                  <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}">
+                    <div class="product-title">{{ product.title }}</div>
+                    <div class="product-meta">
+                      <i class="fas fa-shopping-basket"></i>
+                      <span class="frequency">Purchased together {{ product.frequency }} times</span>
+                    </div>
+                  </a>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="no-data">No co-purchased products found.</p>
+              {% endif %}
+            </div>
+          </div>
 
-      <div class="similar-products">
-        <h3>Similar Products</h3>
-        {% if similar_products %}
-        <ul>
-          {% for product in similar_products %}
-          <li>
-            <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}">
-              {{ product.title }}
-            </a>
-          </li>
-          {% endfor %}
-        </ul>
-        {% else %}
-        <p>No similar products found.</p>
-        {% endif %}
+          <!-- Similar Products Card -->
+          <div class="similar-products card">
+            <div class="card-header">
+              <h3><i class="fas fa-clone"></i> Similar Products</h3>
+            </div>
+            <div class="card-content">
+              {% if similar_products %}
+              <ul class="product-list">
+                {% for product in similar_products %}
+                <li class="related-product-item">
+                  <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}">
+                    <div class="product-title">{{ product.title }}</div>
+                  </a>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="no-data">No similar products found.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column - Reviews -->
+        <div class="product-secondary">
+          <div class="product-reviews card">
+            <div class="card-header">
+              <h3><i class="fas fa-comments"></i> Customer Reviews</h3>
+            </div>
+            <div class="card-content">
+              {% if reviews %}
+              <ul class="reviews-list">
+                {% for review in reviews %}
+                <li class="review-item">
+                  <div class="review-header">
+                    <div class="user-info">
+                      <i class="fas fa-user-circle"></i>
+                      <span class="user-id">{{ review.user_id }}</span>
+                    </div>
+                    <span class="review-date">{{ review.date }}</span>
+                  </div>
+                  <div class="review-rating">
+                    {% for i in range(5) %}
+                    {% if i < review.rating|int %} <i class="fas fa-star"></i>
+                      {% else %}
+                      <i class="far fa-star"></i>
+                      {% endif %}
+                      {% endfor %}
+                      <span class="rating-value">({{ review.rating }})</span>
+                  </div>
+                  <div class="review-stats">
+                    <i class="fas fa-thumbs-up"></i>
+                    <span class="helpful">{{ review.helpful }} of {{ review.votes }} found helpful</span>
+                  </div>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <p class="no-data">No reviews found for this product.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
-  <footer>
-    <p>&copy; 2025 Amazon Analysis Project</p>
-  </footer>
+  <!-- Chatbox Icon -->
+  <div class="chatbox-icon">
+    <div class="chat-pulse"></div>
+    <i class="fas fa-comments"></i>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 
 </html>
