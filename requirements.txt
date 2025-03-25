@@ -8,3 +8,4 @@ sentence-transformers
 clean-text
 unidecode
 bing-image-downloader
+thefuzz

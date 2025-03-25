@@ -39,25 +39,55 @@ def get_pagination_range(page, total_pages, block_size=5): # for pagination in t
 def group_products(group_name):
     page = request.args.get('page', 1, type=int)
     per_page = 21
-    query = """
-    MATCH (g:Group {name: $group_name})
-    CALL apoc.path.expandConfig(g, {
-        relationshipFilter: "<PART_OF",
-        minLevel: 1,
-        maxLevel: 1
-    }) YIELD path
-    WITH last(nodes(path)) as p
-    RETURN p.title AS product_title, p.ASIN AS product_asin
-    ORDER BY p.total_score DESC
-    SKIP $skip LIMIT $limit
-    """
+    sort_by = request.args.get('sort_by', 'total_score')
+    sort_order = request.args.get('sort_order', 'DESC')
+    
+    if sort_order == 'ASC':
+        query = """
+        MATCH (g:Group {name: $group_name})
+        CALL apoc.path.expandConfig(g, {
+            relationshipFilter: "<PART_OF",
+            minLevel: 1,
+            maxLevel: 1
+        }) YIELD path
+        WITH last(nodes(path)) as p
+        RETURN p.title AS product_title, p.ASIN AS product_asin, p.total_score AS total_score, p.avg_rating AS avg_rating
+        ORDER BY 
+        CASE $sort_by 
+            WHEN 'total_score' THEN p.total_score 
+            WHEN 'title' THEN p.title 
+            WHEN 'avg_rating' THEN p.avg_rating 
+        END ASC
+        SKIP $skip LIMIT $limit
+        """
+    else:
+        query = """
+        MATCH (g:Group {name: $group_name})
+        CALL apoc.path.expandConfig(g, {
+            relationshipFilter: "<PART_OF",
+            minLevel: 1,
+            maxLevel: 1
+        }) YIELD path
+        WITH last(nodes(path)) as p
+        RETURN p.title AS product_title, p.ASIN AS product_asin, p.total_score AS total_score, p.avg_rating AS avg_rating
+        ORDER BY 
+        CASE $sort_by 
+            WHEN 'total_score' THEN p.total_score 
+            WHEN 'title' THEN p.title 
+            WHEN 'avg_rating' THEN p.avg_rating 
+        END DESC
+        SKIP $skip LIMIT $limit
+        """
     try:
         result = neo4j_conn.query(query, parameters={
             "group_name": group_name,
             "skip": (page - 1) * per_page,
-            "limit": per_page
+            "limit": per_page,
+            "sort_by": sort_by,
+            "sort_order": sort_order
         })
-        products = [{"title": record["product_title"], "asin": record["product_asin"]} for record in result]
+        products = [{"title": record["product_title"], "asin": record["product_asin"], 
+                     "total_score": record["total_score"], "avg_rating": record["avg_rating"]} for record in result]
         
         count_query = """
         MATCH (g:Group {name: $group_name})
@@ -86,22 +116,44 @@ def group_products(group_name):
 def products_by_category(category_name):
     page = request.args.get('page', 1, type=int)
     items_per_page = 21
+    sort_by = request.args.get('sort_by', 'total_score')
+    sort_order = request.args.get('sort_order', 'DESC')
     
     # Query to fetch products belonging to the selected category with pagination
-    query = """
-    MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
-    RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
-           p.salesrank AS salesrank, p.total_score AS total_score
-    ORDER BY p.total_score DESC
-    SKIP $skip LIMIT $limit
-    """
+    if sort_order == 'ASC':
+        query = """
+        MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+        RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
+               p.salesrank AS salesrank, p.total_score AS total_score
+        ORDER BY 
+        CASE $sort_by 
+            WHEN 'total_score' THEN p.total_score 
+            WHEN 'title' THEN p.title 
+            WHEN 'avg_rating' THEN p.avg_rating
+        END ASC
+        SKIP $skip LIMIT $limit
+        """
+    else:
+        query = """
+        MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+        RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
+               p.salesrank AS salesrank, p.total_score AS total_score
+        ORDER BY 
+        CASE $sort_by 
+            WHEN 'total_score' THEN p.total_score 
+            WHEN 'title' THEN p.title 
+            WHEN 'avg_rating' THEN p.avg_rating
+        END DESC
+        SKIP $skip LIMIT $limit
+        """
     
     try:
         skip = (page - 1) * items_per_page
         result = neo4j_conn.query(query, parameters={
             "category_name": category_name, 
             "skip": skip, 
-            "limit": items_per_page
+            "limit": items_per_page,
+            "sort_by": sort_by
         })
         
         products = [{"title": record["title"], 
@@ -110,7 +162,6 @@ def products_by_category(category_name):
                     "salesrank": record["salesrank"],
                     "total_score": record["total_score"]} for record in result]
         
-        # Query to count total products in the category
         count_query = """
         MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
         RETURN count(p) AS total_products
@@ -132,7 +183,9 @@ def products_by_category(category_name):
                           products=products,
                           page=page,
                           total_pages=total_pages,
-                          pagination_range=pagination_range)
+                          pagination_range=pagination_range,
+                          sort_by=sort_by,
+                          sort_order=sort_order)
 
 # MULTIPLE CATEGORY SEARCH ROUTE    
 @main_bp.route('/api/categories/search')
@@ -140,70 +193,33 @@ def search_categories():
     query = request.args.get('q', '').strip().lower()
     if len(query) < 2:
         return jsonify({"categories": []})
-
-    # Levenshtein distance implementation
-    def levenshtein_distance_between_two_strings(s1, s2):
-        if len(s1) < len(s2):
-            return levenshtein_distance_between_two_strings(s2, s1)
-        if len(s2) == 0:
-            return len(s1)
-        
-        previous_row = range(len(s2) + 1)
-        for i, c1 in enumerate(s1):
-            current_row = [i + 1]
-            for j, c2 in enumerate(s2):
-                insertions = previous_row[j + 1] + 1
-                deletions = current_row[j] + 1
-                substitutions = previous_row[j] + (c1 != c2)
-                current_row.append(min(insertions, deletions, substitutions))
-            previous_row = current_row
-        return previous_row[-1]
-
-    # Modified Cypher query to fetch broader results
-    search_query = """
-    MATCH (c:Category)
-    WHERE toLower(c.name) CONTAINS toLower($query)
-    RETURN c.name AS category_name
-    ORDER BY c.name
-    LIMIT 100
-    """
     
     try:
-        results = neo4j_conn.query(search_query, parameters={"query": query})
-        categories = [record["category_name"] for record in results]
+        # First get exact and partial matches from database
+        search_query = """
+        MATCH (c:Category)
+        RETURN c.name AS category_name
+        ORDER BY c.name
+        """
         
-        processed = []
-        extensions = []
+        results = neo4j_conn.query(search_query)
+        all_categories = [record["category_name"] for record in results]
         
-        # Process categories for fuzzy matching and extensions
-        for category in categories:
-            lower_category = category.lower()
-            
-            # Exact match prioritization
-            if lower_category.startswith(query):
-                processed.append((category, 0))  # Distance 0 for exact match
-            
-            # Fuzzy matching using Levenshtein distance
-            else:
-                distance = levenshtein_distance_between_two_strings(query, lower_category[:len(query)])
-                if distance <= 2:  # Allow up to two edits for fuzzy match
-                    processed.append((category, distance))
-            
-            # Collect related categories/extensions (e.g., "google earth" for "google")
-            if query in lower_category or lower_category.startswith(query):
-                extensions.append(category)
+        # Use TheFuzz for better fuzzy matching
+        from thefuzz import process
         
-        # Sort by relevance: exact matches first, then fuzzy matches by distance
-        processed.sort(key=lambda x: (x[1], x[0].lower()))
+        # Get top matches using token_sort_ratio for better partial matching
+        matches = process.extract(query, all_categories, limit=15, scorer=process.fuzz.token_sort_ratio)
         
-        # Combine exact matches and extensions into the final list
-        final_categories = [item[0] for item in processed[:10]] + extensions[:10]
+        # Filter matches with a minimum score of 60
+        filtered_matches = [match[0] for match in matches if match[1] >= 60]
         
-        return jsonify({"categories": final_categories})
+        return jsonify({"categories": filtered_matches})
     
     except Exception as e:
         print(f"Error searching categories: {e}")
         return jsonify({"error": str(e), "categories": []}), 500
+
 
 # For common categories
 @main_bp.route('/api/common-products')
@@ -211,21 +227,39 @@ def common_products():
     categories = request.args.getlist('categories')
     page = request.args.get('page', 1, type=int)
     per_page = 21
+    sort_by = request.args.get('sort_by', 'total_score')
+    sort_order = request.args.get('sort_order', 'DESC')
     
     if not categories:
         return jsonify({"error": "No categories provided", "products": []}), 400
     
-    query = """
+    # Validate sort_by parameter
+    valid_sort_fields = ['total_score', 'title', 'avg_rating']
+    if sort_by not in valid_sort_fields:
+        sort_by = 'total_score'
+    
+    # Validate sort_order parameter
+    if sort_order not in ['ASC', 'DESC']:
+        sort_order = 'DESC'
+    
+    # Build the query with conditional ORDER BY clause
+    order_clause = f"p.{sort_by} {sort_order}"
+    if sort_by == 'title':
+        order_clause = f"p.title {sort_order}"
+    elif sort_by == 'avg_rating':
+        order_clause = f"p.avg_rating {sort_order}"
+    
+    query = f"""
     MATCH (p:Product)
-    WHERE EXISTS {
-      MATCH (p)-[:BELONGS_TO]->(:Category {name: $categories[0]})
-    }
+    WHERE EXISTS {{
+      MATCH (p)-[:BELONGS_TO]->(:Category {{name: $categories[0]}})
+    }}
     AND ALL(category IN $categories[1..] WHERE 
-          EXISTS {
-            MATCH (p)-[:BELONGS_TO]->(:Category {name: category})
-          })
-    RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS rating
-    ORDER BY p.total_score DESC
+          EXISTS {{
+            MATCH (p)-[:BELONGS_TO]->(:Category {{name: category}})
+          }})
+    RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS rating, p.total_score AS total_score
+    ORDER BY {order_clause}
     SKIP $skip
     LIMIT $limit
     """
@@ -253,7 +287,8 @@ def common_products():
         count_result = neo4j_conn.query(count_query, parameters={"categories": categories})
         total = count_result[0]["total"] if count_result else 0
         
-        products = [{"title": record["title"], "asin": record["asin"], "rating": record["rating"]} 
+        products = [{"title": record["title"], "asin": record["asin"], 
+                    "rating": record["rating"], "total_score": record["total_score"]} 
                    for record in results]
         
         return jsonify({
@@ -261,7 +296,9 @@ def common_products():
             "page": page,
             "per_page": per_page,
             "total": total,
-            "total_pages": (total + per_page - 1) // per_page
+            "total_pages": (total + per_page - 1) // per_page,
+            "sort_by": sort_by,
+            "sort_order": sort_order
         })
     except Exception as e:
         print(f"Error fetching common products: {e}")
