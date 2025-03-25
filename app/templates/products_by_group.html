@@ -36,6 +36,23 @@
       <div class="section-divider"></div>
     </div>
 
+    <div class="sorting-options">
+      <label for="sort-select">Sort by:</label>
+      <select id="sort-select">
+        <option value="" disabled selected>Select option</option>
+        <option value="title" {% if sort_by=='title' %}selected{% endif %}>Product Name</option>
+        <option value="total_score" {% if sort_by=='total_score' %}selected{% endif %}>Popularity</option>
+        <option value="avg_rating" {% if sort_by=='avg_rating' %}selected{% endif %}>Average Rating</option>
+      </select>
+      <label for="order-select">Order:</label>
+      <select id="order-select">
+        <option value="" disabled selected>Select option</option>
+        <option value="ASC" {% if sort_order=='ASC' %}selected{% endif %}>Ascending</option>
+        <option value="DESC" {% if sort_order=='DESC' %}selected{% endif %}>Descending</option>
+      </select>
+      <button id="view-button" onclick="updateSort()">View</button>
+    </div>
+
     {% if products %}
     <section class="product-grid">
       {% for product in products %}
@@ -94,6 +111,24 @@
   </div>
 
   <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+  <script>
+    function updateSort() {
+      var sortBy = document.getElementById('sort-select').value;
+      var sortOrder = document.getElementById('order-select').value;
+      var currentUrl = new URL(window.location.href);
+
+      if (sortBy) {
+        currentUrl.searchParams.set('sort_by', sortBy);
+      }
+
+      if (sortOrder) {
+        currentUrl.searchParams.set('sort_order', sortOrder);
+      }
+
+      currentUrl.searchParams.set('page', 1);
+      window.location.href = currentUrl.toString();
+    }
+  </script>
 </body>
 
 </html>
