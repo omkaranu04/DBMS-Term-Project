@@ -133,26 +133,74 @@ def products_by_category(category_name):
                           page=page,
                           total_pages=total_pages,
                           pagination_range=pagination_range)
-    
-# MULTIPLE CATEGORY SEARCH ROUTE
+
+# MULTIPLE CATEGORY SEARCH ROUTE    
 @main_bp.route('/api/categories/search')
 def search_categories():
-    query = request.args.get('q', '')
+    query = request.args.get('q', '').strip().lower()
     if len(query) < 2:
         return jsonify({"categories": []})
-    
+
+    # Levenshtein distance implementation
+    def levenshtein_distance_between_two_strings(s1, s2):
+        if len(s1) < len(s2):
+            return levenshtein_distance_between_two_strings(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+        
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+        return previous_row[-1]
+
+    # Modified Cypher query to fetch broader results
     search_query = """
     MATCH (c:Category)
-    WHERE toLower(c.name) STARTS WITH toLower($query)
+    WHERE toLower(c.name) CONTAINS toLower($query)
     RETURN c.name AS category_name
     ORDER BY c.name
-    LIMIT 10
+    LIMIT 100
     """
     
     try:
         results = neo4j_conn.query(search_query, parameters={"query": query})
         categories = [record["category_name"] for record in results]
-        return jsonify({"categories": categories})
+        
+        processed = []
+        extensions = []
+        
+        # Process categories for fuzzy matching and extensions
+        for category in categories:
+            lower_category = category.lower()
+            
+            # Exact match prioritization
+            if lower_category.startswith(query):
+                processed.append((category, 0))  # Distance 0 for exact match
+            
+            # Fuzzy matching using Levenshtein distance
+            else:
+                distance = levenshtein_distance_between_two_strings(query, lower_category[:len(query)])
+                if distance <= 2:  # Allow up to two edits for fuzzy match
+                    processed.append((category, distance))
+            
+            # Collect related categories/extensions (e.g., "google earth" for "google")
+            if query in lower_category or lower_category.startswith(query):
+                extensions.append(category)
+        
+        # Sort by relevance: exact matches first, then fuzzy matches by distance
+        processed.sort(key=lambda x: (x[1], x[0].lower()))
+        
+        # Combine exact matches and extensions into the final list
+        final_categories = [item[0] for item in processed[:10]] + extensions[:10]
+        
+        return jsonify({"categories": final_categories})
+    
     except Exception as e:
         print(f"Error searching categories: {e}")
         return jsonify({"error": str(e), "categories": []}), 500
