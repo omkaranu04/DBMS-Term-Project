@@ -141,10 +141,10 @@ def search_categories():
     if len(query) < 2:
         return jsonify({"categories": []})
 
-    # Levenshtein distance implementation
-    def levenshtein_distance_between_two_strings(s1, s2):
+    # Improved Levenshtein distance implementation
+    def levenshtein(s1, s2):
         if len(s1) < len(s2):
-            return levenshtein_distance_between_two_strings(s2, s1)
+            return levenshtein(s2, s1)
         if len(s2) == 0:
             return len(s1)
         
@@ -159,13 +159,14 @@ def search_categories():
             previous_row = current_row
         return previous_row[-1]
 
-    # Modified Cypher query to fetch broader results
+    # Modified Cypher query to get a broader range of initial matches
     search_query = """
     MATCH (c:Category)
     WHERE toLower(c.name) CONTAINS toLower($query)
+    OR apoc.text.levenshteinSimilarity(toLower(c.name), toLower($query)) > 0.6
     RETURN c.name AS category_name
     ORDER BY c.name
-    LIMIT 100
+    LIMIT 200
     """
     
     try:
@@ -173,33 +174,37 @@ def search_categories():
         categories = [record["category_name"] for record in results]
         
         processed = []
-        extensions = []
-        
-        # Process categories for fuzzy matching and extensions
         for category in categories:
             lower_category = category.lower()
             
-            # Exact match prioritization
-            if lower_category.startswith(query):
-                processed.append((category, 0))  # Distance 0 for exact match
+            # Check for exact match or starts with
+            if lower_category == query or lower_category.startswith(query):
+                processed.append((category, 0, 0))  # Highest priority
+                continue
             
-            # Fuzzy matching using Levenshtein distance
-            else:
-                distance = levenshtein_distance_between_two_strings(query, lower_category[:len(query)])
-                if distance <= 2:  # Allow up to two edits for fuzzy match
-                    processed.append((category, distance))
+            # Check for contains
+            if query in lower_category:
+                processed.append((category, 1, lower_category.index(query)))
+                continue
             
-            # Collect related categories/extensions (e.g., "google earth" for "google")
-            if query in lower_category or lower_category.startswith(query):
-                extensions.append(category)
+            # Calculate Levenshtein distance
+            distance = levenshtein(query, lower_category[:len(query)])
+            
+            # Calculate word similarity
+            category_words = lower_category.split()
+            query_words = query.split()
+            word_similarity = sum(1 for w in query_words if any(w in cw for cw in category_words))
+            
+            # Combine distance and word similarity
+            score = distance - word_similarity
+            
+            processed.append((category, score, len(category)))
         
-        # Sort by relevance: exact matches first, then fuzzy matches by distance
-        processed.sort(key=lambda x: (x[1], x[0].lower()))
-        
-        # Combine exact matches and extensions into the final list
-        final_categories = [item[0] for item in processed[:10]] + extensions[:10]
-        
-        return jsonify({"categories": final_categories})
+        # Sort by: 1) score (lower is better), 2) length (shorter is better), 3) alphabetical
+        processed.sort(key=lambda x: (x[1], x[2], x[0].lower()))
+        categories = [item[0] for item in processed[:10]]
+
+        return jsonify({"categories": categories})
     
     except Exception as e:
         print(f"Error searching categories: {e}")
