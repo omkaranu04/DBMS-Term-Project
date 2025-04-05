@@ -8,6 +8,9 @@ from datetime import datetime
 import re
 from config import neo4j_conn
 from rag_engine import RAGEngine
+main_bp = Blueprint('main', __name__)
+rag_engine = RAGEngine()
+
 
 # Performance logging setup
 performance_logger = logging.getLogger('performance')
@@ -17,10 +20,6 @@ file_handler.setFormatter(formatter)
 performance_logger.addHandler(file_handler)
 performance_logger.setLevel(logging.INFO)
 
-main_bp = Blueprint('main', __name__)
-
-rag_engine = RAGEngine()
-
 # Enhanced performance logging decorator with multi-value parameter support
 def log_performance(func):
     @functools.wraps(func)
@@ -29,52 +28,11 @@ def log_performance(func):
         route_name = func.__name__
         endpoint = request.path
         
-        # Extract all possible parameters
-        params = {}
-        
-        # 1. URL path parameters (from the route)
-        if kwargs:
-            params.update({"path_params": kwargs})
-            
-        # 2. Query parameters - enhanced to handle multi-value params
-        if request.args:
-            query_params = {}
-            for key in request.args.keys():
-                # Check if this is a multi-value parameter
-                values = request.args.getlist(key)
-                if len(values) > 1:
-                    query_params[key] = values
-                else:
-                    query_params[key] = request.args.get(key)
-            params.update({"query_params": query_params})
-            
-        # 3. Form data - also handle multi-value form fields
-        if request.form:
-            form_data = {}
-            for key in request.form.keys():
-                values = request.form.getlist(key)
-                if len(values) > 1:
-                    form_data[key] = values
-                else:
-                    form_data[key] = request.form.get(key)
-            params.update({"form_data": form_data})
-            
-        # 4. JSON data
-        if request.is_json and request.json:
-            # Only include if not too large to avoid bloating logs
-            json_data = request.json
-            if isinstance(json_data, dict):
-                # For large JSON payloads, just log the keys
-                if len(str(json_data)) > 1000:
-                    params.update({"json_keys": list(json_data.keys())})
-                else:
-                    params.update({"json_data": json_data})
-        
         # Start monitoring
         start_time = time.time()
-        start_cpu = psutil.cpu_percent(interval=None)
         process = psutil.Process(os.getpid())
-        start_process_memory = process.memory_info().rss / (1024 * 1024)  # Convert to MB
+        start_cpu = psutil.cpu_percent(interval=None)
+        start_memory = process.memory_info().rss / (1024 * 1024)  # MB
         
         # Run the actual route function
         result = func(*args, **kwargs)
@@ -82,38 +40,23 @@ def log_performance(func):
         # End monitoring
         end_time = time.time()
         duration = end_time - start_time
-        end_cpu = psutil.cpu_percent(interval=0.1)  # Get CPU with minimal interval
-        end_memory = psutil.virtual_memory()
-        end_process_memory = process.memory_info().rss / (1024 * 1024)  # Convert to MB
+        end_cpu = psutil.cpu_percent(interval=0.1)
+        end_memory = process.memory_info().rss / (1024 * 1024)  # MB
         
-        # Calculate metrics - ensure non-negative values
-        cpu_load = os.getloadavg() if hasattr(os, 'getloadavg') else (0, 0, 0)
-        memory_change_mb = max(0, end_process_memory - start_process_memory)  # Ensure non-negative
-        
-        # Determine query name based on route function
-        query_name = "Unknown"
-        if hasattr(func, "__doc__") and func.__doc__:
-            # Extract query name from docstring if available
-            query_name = func.__doc__.strip().split('\n')[0]
-        else:
-            query_name = route_name
-        
-        # Log performance data
+        # Format the log entry with clear sections and alignment
         log_entry = (
-            f"Route: {route_name} | "
-            f"Endpoint: {endpoint} | "
-            f"Query: {query_name} | "
-            f"Duration: {duration:.4f}s | "
-            f"CPU Usage: {end_cpu:.2f}% | "
-            f"CPU Load (1/5/15 min): {cpu_load[0]:.2f}/{cpu_load[1]:.2f}/{cpu_load[2]:.2f} | "
-            f"Memory Usage: {end_memory.percent:.2f}% | "
-            f"Process Memory: {end_process_memory:.2f}MB | "
-            f"Memory Change: {memory_change_mb:.2f}MB | "
-            f"Parameters: {params}"
+            f"ENDPOINT: {endpoint}\n"
+            f"ROUTE FUNCTION: {route_name}\n"
+            f"PERFORMANCE METRICS:\n"
+            f"  Query Execution Time: {duration:.4f} seconds\n"
+            f"  CPU Usage: {end_cpu:.2f}%\n"
+            f"  Memory Change: {abs(end_memory - start_memory):.2f} MB\n"
+            f"{'=' * 80}\n"
         )
-        performance_logger.info(log_entry)
         
+        performance_logger.info(log_entry)
         return result
+    
     return wrapper
 
 @main_bp.route('/')
