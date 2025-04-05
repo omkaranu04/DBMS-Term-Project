@@ -452,12 +452,22 @@ def product_detail(product_asin):
     ORDER BY r.Frequency DESC
     """
     
+    sort = request.args.get('sort', 'helpful_desc')
+    order_clauses = {
+        'helpful_desc': 'r.Helpful DESC',
+        'helpful_asc': 'r.Helpful ASC',
+        'rating_desc': 'r.Rating DESC',
+        'rating_asc': 'r.Rating ASC',
+        'date_desc': 'r.Date DESC',
+        'date_asc': 'r.Date ASC'
+    }
+    order_by = order_clauses.get(sort, 'r.Helpful DESC')
     reviews_query = """
     MATCH (u:Consumer)-[r:REVIEWED]->(p:Product {ASIN: $product_asin})
     RETURN u.Customer AS user_id, r.Date AS date, r.Rating AS rating, 
            r.Helpful AS helpful, r.Votes AS votes
-    ORDER BY r.Helpful DESC
-    """
+    ORDER BY 
+    """ + order_by
     
     try:
         product_result = neo4j_conn.query(product_query, parameters={"product_asin": product_asin})

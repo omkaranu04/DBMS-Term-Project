@@ -381,3 +381,27 @@
         max-height: 400px;
     }
 }
+
+/* Sort Controls */
+.sort-control {
+    margin-bottom: var(--spacing-md);
+}
+
+.sort-select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background-color: var(--background-light);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    transition: all var(--transition-speed);
+}
+
+.sort-select:hover {
+    border-color: var(--primary-color);
+}
+
+.sort-select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--primary-light);
+}

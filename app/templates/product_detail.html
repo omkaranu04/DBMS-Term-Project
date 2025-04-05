@@ -160,6 +160,24 @@
             </div>
             <div class="card-content">
               {% if reviews %}
+              <div class="sort-control">
+                <form method="get">
+                  <select name="sort" onchange="this.form.submit()">
+                    <option value="helpful_desc" {% if request.args.get('sort', 'helpful_desc' )=='helpful_desc'
+                      %}selected{% endif %}>Most Helpful</option>
+                    <option value="helpful_asc" {% if request.args.get('sort')=='helpful_asc' %}selected{% endif %}>
+                      Least Helpful</option>
+                    <option value="rating_desc" {% if request.args.get('sort')=='rating_desc' %}selected{% endif %}>
+                      Highest Rating</option>
+                    <option value="rating_asc" {% if request.args.get('sort')=='rating_asc' %}selected{% endif %}>Lowest
+                      Rating</option>
+                    <option value="date_desc" {% if request.args.get('sort')=='date_desc' %}selected{% endif %}>Newest
+                      First</option>
+                    <option value="date_asc" {% if request.args.get('sort')=='date_asc' %}selected{% endif %}>Oldest
+                      First</option>
+                  </select>
+                </form>
+              </div>
               <ul class="reviews-list">
                 {% for review in reviews %}
                 <li class="review-item">
