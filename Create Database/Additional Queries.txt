@@ -1,0 +1,16 @@
+CALL apoc.periodic.iterate(
+  "
+  MATCH ()-[r:REVIEWED]->()
+  WHERE r.Date IS NOT NULL
+  RETURN r
+  ",
+  "
+  WITH r, split(r.Date, '-') AS parts
+  WITH r,
+       toInteger(parts[0]) AS year,
+       toInteger(parts[1]) AS month,
+       toInteger(parts[2]) AS day
+  SET r.Date = apoc.temporal.format(date({year: year, month: month, day: day}), 'yyyy-MM-dd')
+  ",
+  {batchSize: 1000, parallel: false}
+)

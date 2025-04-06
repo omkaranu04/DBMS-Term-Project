@@ -23,6 +23,9 @@
       <a href="{{ url_for('main.categories_page') }}" class="nav-button">
         <i class="fas fa-search"></i> Search by Category
       </a>
+      <a href="{{ url_for('main.trending_products') }}" class="nav-button">
+        <i class="fas fa-fire"></i> Trending Products
+      </a>
     </nav>
   </header>
 
@@ -47,6 +50,7 @@
         <option value="title" {% if sort_by=='title' %}selected{% endif %}>Product Name</option>
         <option value="total_score" {% if sort_by=='total_score' %}selected{% endif %}>Popularity</option>
         <option value="avg_rating" {% if sort_by=='avg_rating' %}selected{% endif %}>Average Rating</option>
+        <option value="salesrank" {% if sort_by=='salesrank' %}selected{% endif %}>SalesRank</option>
       </select>
 
       <label for="order-select">Order:</label>

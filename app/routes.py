@@ -112,6 +112,7 @@ def group_products(group_name):
             WHEN 'total_score' THEN p.total_score 
             WHEN 'title' THEN p.title 
             WHEN 'avg_rating' THEN p.avg_rating 
+            WHEN 'salesrank' THEN p.salesrank
         END ASC
         SKIP $skip LIMIT $limit
         """
@@ -130,6 +131,7 @@ def group_products(group_name):
             WHEN 'total_score' THEN p.total_score 
             WHEN 'title' THEN p.title 
             WHEN 'avg_rating' THEN p.avg_rating 
+            WHEN 'salesrank' THEN p.salesrank
         END DESC
         SKIP $skip LIMIT $limit
         """
@@ -186,6 +188,7 @@ def products_by_category(category_name):
             WHEN 'total_score' THEN p.total_score 
             WHEN 'title' THEN p.title 
             WHEN 'avg_rating' THEN p.avg_rating
+            WHEN 'salesrank' THEN p.salesrank
         END ASC
         SKIP $skip LIMIT $limit
         """
@@ -199,6 +202,7 @@ def products_by_category(category_name):
             WHEN 'total_score' THEN p.total_score 
             WHEN 'title' THEN p.title 
             WHEN 'avg_rating' THEN p.avg_rating
+            WHEN 'salesrank' THEN p.salesrank
         END DESC
         SKIP $skip LIMIT $limit
         """
@@ -292,7 +296,7 @@ def common_products():
         return jsonify({"error": "No categories provided", "products": []}), 400
     
     # Validate sort_by parameter
-    valid_sort_fields = ['total_score', 'title', 'avg_rating']
+    valid_sort_fields = ['total_score', 'title', 'avg_rating', 'salesrank']
     if sort_by not in valid_sort_fields:
         sort_by = 'total_score'
     
@@ -306,6 +310,8 @@ def common_products():
         order_clause = f"p.title {sort_order}"
     elif sort_by == 'avg_rating':
         order_clause = f"p.avg_rating {sort_order}"
+    elif sort_by == 'salesrank':
+        order_clause = f"p.salesrank {sort_order}"
     
     query = f"""
     MATCH (p:Product)
@@ -462,3 +468,43 @@ def chat():
     except Exception as e:
         print(f"Error in chat endpoint: {str(e)}")
         return jsonify({"error": str(e)}), 500
+    
+# Trending Products Route
+@main_bp.route('/trending')
+@log_performance
+def trending_products():
+    start_date_str = "2005-06-28"
+    end_date_str = "2005-07-06"
+
+    try:
+        query = """
+        MATCH (c:Consumer)-[r:REVIEWED]->(p:Product)
+        WHERE date(r.Date) >= date($start_date) AND date(r.Date) <= date($end_date)
+        WITH p, count(r) AS review_count, p.total_score AS total_score
+        ORDER BY review_count DESC, total_score DESC
+        LIMIT 10
+        RETURN p.title AS product_title, p.ASIN AS product_asin, 
+               review_count, total_score
+        """
+
+        result = neo4j_conn.query(query, parameters={
+            "start_date": start_date_str,
+            "end_date": end_date_str,
+        })
+
+        products = [{
+            "title": record["product_title"], 
+            "asin": record["product_asin"],
+            "review_count": record["review_count"],
+            "total_score": record["total_score"]
+        } for record in result]
+
+        return render_template(
+            'trending.html',
+            products=products,
+            start_date=start_date_str,
+            end_date=end_date_str
+        )
+    except Exception as e:
+        print(f"Error fetching trending products: {e}")
+        return render_template('trending.html', products=[], start_date=start_date_str, end_date=end_date_str)

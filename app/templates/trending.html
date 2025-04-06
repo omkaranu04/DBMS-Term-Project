@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trending Products</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/trending.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/home_page.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+
+<body>
+    <header>
+        <div class="logo-container">
+            <h1>Amazon SNAP - Graph Database</h1>
+        </div>
+        <nav>
+            <a href="{{ url_for('main.home') }}" class="nav-button">
+                <i class="fas fa-home"></i> Home
+            </a>
+            <a href="{{ url_for('main.categories_page') }}" class="nav-button">
+                <i class="fas fa-search"></i> Search by Category
+            </a>
+            <a href="{{ url_for('main.trending_products') }}" class="nav-button">
+                <i class="fas fa-fire"></i> Trending Products
+            </a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="breadcrumb">
+            <a href="{{ url_for('main.home') }}">Home</a> <i class="fas fa-chevron-right"></i>
+            <span>Trending Products</span>
+        </div>
+
+        <div class="page-header">
+            <h2>Trending Products</h2>
+            <div class="section-divider"></div>
+        </div>
+
+        {% if products %}
+        <section class="product-grid">
+            {% for product in products %}
+            <div class="product-card">
+                <a href="{{ url_for('main.product_detail', product_asin=product.asin) }}" class="product-link">
+                    <div class="product-icon">
+                        <i class="fas fa-fire"></i>
+                    </div>
+                    <div class="product-info">
+                        <h3 class="product-title">{{ product.title }}</h3>
+                        <p class="product-asin">ASIN: {{ product.asin }}</p>
+                    </div>
+                    <div class="product-arrow">
+                        <span class="rank-number">#{{ loop.index }}</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </section>
+        {% else %}
+        <div class="no-results">
+            <i class="fas fa-exclamation-circle"></i>
+            <p>No trending products found for the specified period.</p>
+            <a href="{{ url_for('main.home') }}" class="back-button">Return to Home</a>
+        </div>
+        {% endif %}
+    </main>
+
+    <!-- Chatbox Icon -->
+    <div class="chatbox-icon">
+        <div class="chat-pulse"></div>
+        <i class="fas fa-comments"></i>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+
+</html>
