@@ -508,3 +508,72 @@ def trending_products():
     except Exception as e:
         print(f"Error fetching trending products: {e}")
         return render_template('trending.html', products=[], start_date=start_date_str, end_date=end_date_str)
+    
+@main_bp.route('/top-users')
+@log_performance
+def top_users():
+    try:
+        query = """
+        MATCH (c:Consumer)
+        WHERE c.score IS NOT NULL
+        RETURN c.name AS user_name, c.Customer AS user_id, c.score AS user_score
+        ORDER BY c.score DESC
+        LIMIT 10
+        """
+
+        result = neo4j_conn.query(query)
+
+        users = [{
+            "name": record["user_name"],
+            "id": record["user_id"],
+            "score": record["user_score"]
+        } for record in result]
+
+        return render_template(
+            'top_users.html',
+            users=users
+        )
+    except Exception as e:
+        print(f"Error fetching top users: {e}")
+        return render_template('top_users.html', users=[])
+
+@main_bp.route('/user-reviews/<user_id>')
+@log_performance
+def user_reviews(user_id):
+    try:
+        query = """
+        MATCH (c:Consumer {Customer: $user_id})-[r:REVIEWED]->(p:Product)
+        RETURN p.title AS product_title, p.ASIN AS product_asin, 
+               r.Helpful AS helpful, r.Rating AS rating, r.Date AS date
+        ORDER BY r.Helpful DESC
+        LIMIT 10
+        """
+
+        result = neo4j_conn.query(query, parameters={"user_id": user_id})
+
+        reviews = [{
+            "product_title": record["product_title"],
+            "product_asin": record["product_asin"],
+            "helpful": record["helpful"],
+            "rating": record["rating"],
+            "date": record["date"]
+        } for record in result]
+
+        # Get user name
+        user_query = """
+        MATCH (c:Consumer {Customer: $user_id})
+        RETURN c.name AS user_name, c.score AS user_score
+        """
+        user_result = neo4j_conn.query(user_query, parameters={"user_id": user_id})
+        user_info = user_result[0] if user_result else {"user_name": "Unknown", "user_score": 0}
+
+        return render_template(
+            'user_reviews.html',
+            reviews=reviews,
+            user_id=user_id,
+            user_name=user_info["user_name"],
+            user_score=user_info["user_score"]
+        )
+    except Exception as e:
+        print(f"Error fetching user reviews: {e}")
+        return render_template('user_reviews.html', reviews=[], user_id=user_id, user_name="Unknown", user_score=0)
