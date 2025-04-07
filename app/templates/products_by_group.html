@@ -46,18 +46,24 @@
       <label for="sort-select">Sort by:</label>
       <select id="sort-select">
         <option value="" {% if not sort_by %}selected{% endif %}>Select Sort By</option>
-        <option value="title" {% if sort_by=='title' %}selected{% endif %}>Product Name</option>
-        <option value="total_score" {% if sort_by=='total_score' %}selected{% endif %}>Popularity</option>
+        <option value="total_score" {% if sort_by=='total_score' %}selected{% endif %}>Total Score</option>
+        <option value="title" {% if sort_by=='title' %}selected{% endif %}>Title</option>
         <option value="avg_rating" {% if sort_by=='avg_rating' %}selected{% endif %}>Average Rating</option>
-        <option value="salesrank" {% if sort_by=='salesrank' %}selected{% endif %}>SalesRank</option>
+        <option value="salesrank" {% if sort_by=='salesrank' %}selected{% endif %}>Sales Rank</option>
       </select>
+
       <label for="order-select">Order:</label>
       <select id="order-select">
         <option value="" {% if not sort_order %}selected{% endif %}>Select Order</option>
-        <option value="ASC" {% if sort_order=='ASC' %}selected{% endif %}>Ascending</option>
         <option value="DESC" {% if sort_order=='DESC' %}selected{% endif %}>Descending</option>
+        <option value="ASC" {% if sort_order=='ASC' %}selected{% endif %}>Ascending</option>
       </select>
-      <button id="view-button" onclick="updateSort()">View</button>
+
+      <label for="rating-filter">Min Rating:</label>
+      <input type="number" id="rating-filter" min="0" max="5" step="0.1" value="{{ min_avg_rating|default(0) }}"
+        placeholder="Min Rating">
+
+      <button id="view-button" class="view-button" onclick="updateFilters()">Apply Filters</button>
     </div>
 
     {% if products %}
@@ -119,17 +125,29 @@
 
   <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
   <script>
-    function updateSort() {
+    function updateFilters() {
       var sortBy = document.getElementById('sort-select').value;
       var sortOrder = document.getElementById('order-select').value;
+      var minRating = document.getElementById('rating-filter').value;
+
       var currentUrl = new URL(window.location.href);
 
       if (sortBy) {
         currentUrl.searchParams.set('sort_by', sortBy);
+      } else {
+        currentUrl.searchParams.delete('sort_by');
       }
 
       if (sortOrder) {
         currentUrl.searchParams.set('sort_order', sortOrder);
+      } else {
+        currentUrl.searchParams.delete('sort_order');
+      }
+
+      if (minRating && minRating > 0) {
+        currentUrl.searchParams.set('min_avg_rating', minRating);
+      } else {
+        currentUrl.searchParams.delete('min_avg_rating');
       }
 
       currentUrl.searchParams.set('page', 1);

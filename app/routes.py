@@ -96,6 +96,7 @@ def group_products(group_name):
     per_page = 21
     sort_by = request.args.get('sort_by', 'total_score')
     sort_order = request.args.get('sort_order', 'DESC')
+    min_avg_rating = request.args.get('min_avg_rating', 0, type=float)
     
     if sort_order == 'ASC':
         query = """
@@ -106,6 +107,7 @@ def group_products(group_name):
             maxLevel: 1
         }) YIELD path
         WITH last(nodes(path)) as p
+        WHERE p.avg_rating >= $min_avg_rating
         RETURN p.title AS product_title, p.ASIN AS product_asin, p.total_score AS total_score, p.avg_rating AS avg_rating
         ORDER BY 
         CASE $sort_by 
@@ -125,6 +127,7 @@ def group_products(group_name):
             maxLevel: 1
         }) YIELD path
         WITH last(nodes(path)) as p
+        WHERE p.avg_rating >= $min_avg_rating
         RETURN p.title AS product_title, p.ASIN AS product_asin, p.total_score AS total_score, p.avg_rating AS avg_rating
         ORDER BY 
         CASE $sort_by 
@@ -141,7 +144,8 @@ def group_products(group_name):
             "skip": (page - 1) * per_page,
             "limit": per_page,
             "sort_by": sort_by,
-            "sort_order": sort_order
+            "sort_order": sort_order,
+            "min_avg_rating": min_avg_rating
         })
         products = [{"title": record["product_title"], "asin": record["product_asin"], 
                      "total_score": record["total_score"], "avg_rating": record["avg_rating"]} for record in result]
@@ -153,9 +157,10 @@ def group_products(group_name):
             minLevel: 1,
             maxLevel: 1
         }) YIELD node
+        WHERE node.avg_rating >= $min_avg_rating
         RETURN count(node) AS total
         """
-        count_result = neo4j_conn.query(count_query, parameters={"group_name": group_name})
+        count_result = neo4j_conn.query(count_query, parameters={"group_name": group_name, "min_avg_rating": min_avg_rating})
         total = count_result[0]["total"]
         
         total_pages = (total + per_page - 1) // per_page
@@ -163,7 +168,8 @@ def group_products(group_name):
         
         return render_template('products_by_group.html', group_name=group_name, products=products,
                                page=page, per_page=per_page, total=total,
-                               total_pages=total_pages, pagination_range=pagination_range)
+                               total_pages=total_pages, pagination_range=pagination_range, sort_by=sort_by,
+                               sort_order=sort_order, min_avg_rating=min_avg_rating)
     except Exception as e:
         print(f"Error fetching products for group {group_name}: {e}")
         return render_template('products_by_group.html', group_name=group_name, products=[])
@@ -176,11 +182,13 @@ def products_by_category(category_name):
     items_per_page = 21
     sort_by = request.args.get('sort_by', 'total_score')
     sort_order = request.args.get('sort_order', 'DESC')
+    min_avg_rating = request.args.get('min_avg_rating', 0, type=float)
     
     # Query to fetch products belonging to the selected category with pagination
     if sort_order == 'ASC':
         query = """
         MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+        WHERE p.avg_rating >= $min_avg_rating
         RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
                p.salesrank AS salesrank, p.total_score AS total_score
         ORDER BY 
@@ -195,6 +203,7 @@ def products_by_category(category_name):
     else:
         query = """
         MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+        WHERE p.avg_rating >= $min_avg_rating
         RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS avg_rating,
                p.salesrank AS salesrank, p.total_score AS total_score
         ORDER BY 
@@ -213,7 +222,8 @@ def products_by_category(category_name):
             "category_name": category_name, 
             "skip": skip, 
             "limit": items_per_page,
-            "sort_by": sort_by
+            "sort_by": sort_by,
+            "min_avg_rating": min_avg_rating
         })
         
         products = [{"title": record["title"], 
@@ -224,9 +234,10 @@ def products_by_category(category_name):
         
         count_query = """
         MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category_name})
+        WHERE p.avg_rating >= $min_avg_rating
         RETURN count(p) AS total_products
         """
-        count_result = neo4j_conn.query(count_query, parameters={"category_name": category_name})
+        count_result = neo4j_conn.query(count_query, parameters={"category_name": category_name, "min_avg_rating": min_avg_rating})
         total_products = count_result[0]["total_products"] if count_result else 0
         
         total_pages = (total_products + items_per_page - 1) // items_per_page
@@ -245,7 +256,8 @@ def products_by_category(category_name):
                           total_pages=total_pages,
                           pagination_range=pagination_range,
                           sort_by=sort_by,
-                          sort_order=sort_order)
+                          sort_order=sort_order,
+                          min_avg_rating=min_avg_rating)
 
 # MULTIPLE CATEGORY SEARCH ROUTE    
 @main_bp.route('/api/categories/search')
@@ -291,6 +303,7 @@ def common_products():
     per_page = 21
     sort_by = request.args.get('sort_by', 'total_score')
     sort_order = request.args.get('sort_order', 'DESC')
+    min_avg_rating = request.args.get('min_avg_rating', 0, type=float)
     
     if not categories:
         return jsonify({"error": "No categories provided", "products": []}), 400
@@ -322,6 +335,7 @@ def common_products():
           EXISTS {{
             MATCH (p)-[:BELONGS_TO]->(:Category {{name: category}})
           }})
+    AND p.avg_rating >= $min_avg_rating
     RETURN p.title AS title, p.ASIN AS asin, p.avg_rating AS rating, p.total_score AS total_score
     ORDER BY {order_clause}
     SKIP $skip
@@ -337,6 +351,7 @@ def common_products():
           EXISTS {
             MATCH (p)-[:BELONGS_TO]->(:Category {name: category})
           })
+    AND p.avg_rating >= $min_avg_rating
     RETURN count(p) AS total
     """
     
@@ -345,10 +360,11 @@ def common_products():
         results = neo4j_conn.query(query, parameters={
             "categories": categories,
             "skip": skip,
-            "limit": per_page
+            "limit": per_page,
+            "min_avg_rating": min_avg_rating
         })
         
-        count_result = neo4j_conn.query(count_query, parameters={"categories": categories})
+        count_result = neo4j_conn.query(count_query, parameters={"categories": categories, "min_avg_rating": min_avg_rating})
         total = count_result[0]["total"] if count_result else 0
         
         products = [{"title": record["title"], "asin": record["asin"], 
@@ -362,7 +378,8 @@ def common_products():
             "total": total,
             "total_pages": (total + per_page - 1) // per_page,
             "sort_by": sort_by,
-            "sort_order": sort_order
+            "sort_order": sort_order,
+            "min_avg_rating": min_avg_rating
         })
     except Exception as e:
         print(f"Error fetching common products: {e}")

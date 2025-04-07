@@ -325,8 +325,26 @@
     gap: var(--spacing-sm);
   }
 
+  .sorting-options label,
   .sorting-options select,
-  .sorting-options label {
-    margin-right: 0;
+  .sorting-options input,
+  .sorting-options button {
+    margin-bottom: var(--spacing-xs);
   }
+}
+
+#rating-filter {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background-color: white;
+  font-size: 0.9rem;
+  margin-right: var(--spacing-md);
+  width: 80px;
+}
+
+#rating-filter:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px var(--primary-light);
 }

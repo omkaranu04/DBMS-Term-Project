@@ -71,8 +71,8 @@
             <label for="sort-select">Sort by:</label>
             <select id="sort-select">
                 <option value="">Select Sort By</option>
-                <option value="title">Product Name</option>
                 <option value="total_score">Total Score</option>
+                <option value="title">Product Name</option>
                 <option value="avg_rating">Average Rating</option>
                 <option value="salesrank">SalesRank</option>
             </select>
@@ -83,6 +83,9 @@
                 <option value="ASC">Ascending</option>
                 <option value="DESC">Descending</option>
             </select>
+
+            <label for="rating-filter">Min Rating:</label>
+            <input type="number" id="rating-filter" min="0" max="5" step="0.1" placeholder="Min Rating">
 
             <button id="view-button" class="view-button">View</button>
         </div>
@@ -125,6 +128,7 @@
             const sortSelect = document.getElementById('sort-select');
             const orderSelect = document.getElementById('order-select');
             const viewButton = document.getElementById('view-button');
+            const ratingFilter = document.getElementById('rating-filter');
 
             let selectedCategories = [];
             let currentPage = 1;
@@ -132,6 +136,7 @@
             let searchResults = [];
             let currentSortBy = 'total_score';
             let currentSortOrder = 'DESC';
+            let minAvgRating = 0;
 
             categorySearchInput.addEventListener('input', debounce(searchCategories, 300));
             categorySearchInput.addEventListener('keydown', handleKeyboardNavigation);
@@ -294,6 +299,11 @@
                 params.append('sort_by', currentSortBy);
                 params.append('sort_order', currentSortOrder);
 
+                // Add this line to include the rating filter
+                if (minAvgRating && minAvgRating > 0) {
+                    params.append('min_avg_rating', minAvgRating);
+                }
+
                 fetch(`/api/common-products?${params.toString()}`)
                     .then(response => response.json())
                     .then(data => {
@@ -319,19 +329,20 @@
                     const productCard = document.createElement('div');
                     productCard.className = 'product-card';
                     productCard.innerHTML = `
-                <a href="/product/${product.asin}" class="product-link">
-                    <div class="product-icon">
-                        <i class="fas fa-box"></i>
-                    </div>
-                    <div class="product-info">
-                        <h3 class="product-title">${product.title}</h3>
-                        <p class="product-asin">ASIN: ${product.asin}</p>
-                    </div>
-                    <div class="product-arrow">
-                        <i class="fas fa-chevron-right"></i>
-                    </div>
-                </a>
-            `;
+            <a href="/product/${product.asin}" class="product-link">
+                <div class="product-icon">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="product-info">
+                    <h3 class="product-title">${product.title}</h3>
+                    <p class="product-asin">ASIN: ${product.asin}</p>
+                    <p class="product-rating">Rating: ${product.rating || 'N/A'}</p>
+                </div>
+                <div class="product-arrow">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </a>
+        `;
                     productsContainer.appendChild(productCard);
                 });
             }
@@ -377,6 +388,7 @@
             function updateSortingAndFetch() {
                 currentSortBy = sortSelect.value || 'total_score';
                 currentSortOrder = orderSelect.value || 'DESC';
+                minAvgRating = ratingFilter.value || 0;
                 fetchProducts(1);
             }
 
