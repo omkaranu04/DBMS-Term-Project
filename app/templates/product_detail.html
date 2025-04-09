@@ -14,7 +14,9 @@
 <body>
   <header>
     <div class="logo-container">
-      <h1>Amazon SNAP - Graph Database</h1>
+      <a href="{{ url_for('main.home') }}" style="text-decoration: none; color: inherit;">
+        <h1>Amazon SNAP - Graph Database</h1>
+      </a>
     </div>
     <nav>
       <a href="{{ url_for('main.home') }}" class="nav-button">
@@ -168,7 +170,7 @@
               {% if reviews %}
               <div class="sort-control">
                 <form method="get">
-                  <select name="sort" onchange="this.form.submit()">
+                  <select class="sort-select" name="sort" onchange="this.form.submit()">
                     <option value="helpful_desc" {% if request.args.get('sort', 'helpful_desc' )=='helpful_desc'
                       %}selected{% endif %}>Most Helpful</option>
                     <option value="helpful_asc" {% if request.args.get('sort')=='helpful_asc' %}selected{% endif %}>

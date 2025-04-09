@@ -14,7 +14,9 @@
 <body>
   <header>
     <div class="logo-container">
-      <h1>Amazon SNAP - Graph Database</h1>
+      <a href="{{ url_for('main.home') }}" style="text-decoration: none; color: inherit;">
+        <h1>Amazon SNAP - Graph Database</h1>
+      </a>
     </div>
     <nav>
       <a href="{{ url_for('main.home') }}" class="nav-button">
@@ -59,9 +61,11 @@
         <option value="ASC" {% if sort_order=='ASC' %}selected{% endif %}>Ascending</option>
       </select>
 
-      <label for="rating-filter">Min Rating:</label>
-      <input type="number" id="rating-filter" min="0" max="5" step="0.1" value="{{ min_avg_rating|default(0) }}"
-        placeholder="Min Rating">
+      <div class="rating-filter">
+        <label for="rating-slider">Min Rating:</label>
+        <input type="range" id="rating-slider" min="0" max="5" value="0" step="0.1" class="rating-slider">
+        <span class="rating-value">0</span>
+      </div>
 
       <button id="view-button" class="view-button" onclick="updateFilters()">Apply Filters</button>
     </div>
@@ -128,7 +132,7 @@
     function updateFilters() {
       var sortBy = document.getElementById('sort-select').value;
       var sortOrder = document.getElementById('order-select').value;
-      var minRating = document.getElementById('rating-filter').value;
+      var minRating = document.getElementById('rating-slider').value; 
 
       var currentUrl = new URL(window.location.href);
 
@@ -153,6 +157,22 @@
       currentUrl.searchParams.set('page', 1);
       window.location.href = currentUrl.toString();
     }
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const ratingSlider = document.getElementById('rating-slider');
+      const ratingValue = document.querySelector('.rating-value');
+
+      if (ratingSlider && ratingValue) {
+        // Initialize with current value
+        ratingValue.textContent = ratingSlider.value;
+
+        // Update when slider changes
+        ratingSlider.addEventListener('input', function () {
+          ratingValue.textContent = this.value;
+        });
+      }
+    });
   </script>
 </body>
 

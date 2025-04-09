@@ -14,7 +14,9 @@
 <body>
     <header>
         <div class="logo-container">
-            <h1>Amazon SNAP - Graph Database</h1>
+            <a href="{{ url_for('main.home') }}" style="text-decoration: none; color: inherit;">
+                <h1>Amazon SNAP - Graph Database</h1>
+            </a>
         </div>
         <nav>
             <a href="{{ url_for('main.home') }}" class="nav-button">
@@ -70,22 +72,25 @@
         <div class="sorting-options">
             <label for="sort-select">Sort by:</label>
             <select id="sort-select">
-                <option value="">Select Sort By</option>
-                <option value="total_score">Total Score</option>
-                <option value="title">Product Name</option>
-                <option value="avg_rating">Average Rating</option>
-                <option value="salesrank">SalesRank</option>
+                <option value="" {% if not sort_by %}selected{% endif %}>Select Sort By</option>
+                <option value="total_score" {% if sort_by=='total_score' %}selected{% endif %}>Total Score</option>
+                <option value="title" {% if sort_by=='title' %}selected{% endif %}>Title</option>
+                <option value="avg_rating" {% if sort_by=='avg_rating' %}selected{% endif %}>Average Rating</option>
+                <option value="salesrank" {% if sort_by=='salesrank' %}selected{% endif %}>Sales Rank</option>
             </select>
 
             <label for="order-select">Order:</label>
             <select id="order-select">
-                <option value="">Select Order</option>
-                <option value="ASC">Ascending</option>
-                <option value="DESC">Descending</option>
+                <option value="" {% if not sort_order %}selected{% endif %}>Select Order</option>
+                <option value="DESC" {% if sort_order=='DESC' %}selected{% endif %}>Descending</option>
+                <option value="ASC" {% if sort_order=='ASC' %}selected{% endif %}>Ascending</option>
             </select>
 
-            <label for="rating-filter">Min Rating:</label>
-            <input type="number" id="rating-filter" min="0" max="5" step="0.1" placeholder="Min Rating">
+            <div class="rating-filter">
+                <label for="rating-slider">Min Rating:</label>
+                <input type="range" id="rating-slider" min="0" max="5" value="0" step="0.1" class="rating-slider">
+                <span class="rating-value">0</span>
+            </div>
 
             <button id="view-button" class="view-button">View</button>
         </div>
@@ -128,7 +133,6 @@
             const sortSelect = document.getElementById('sort-select');
             const orderSelect = document.getElementById('order-select');
             const viewButton = document.getElementById('view-button');
-            const ratingFilter = document.getElementById('rating-filter');
 
             let selectedCategories = [];
             let currentPage = 1;
@@ -400,6 +404,22 @@
             }
         });
 
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ratingSlider = document.getElementById('rating-slider');
+            const ratingValue = document.querySelector('.rating-value');
+
+            if (ratingSlider && ratingValue) {
+                // Initialize with current value
+                ratingValue.textContent = ratingSlider.value;
+
+                // Update when slider changes
+                ratingSlider.addEventListener('input', function () {
+                    ratingValue.textContent = this.value;
+                });
+            }
+        });
     </script>
 </body>
 
