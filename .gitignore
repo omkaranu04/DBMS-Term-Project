@@ -2,9 +2,8 @@ Amazon Dataset/
 Parsed Data/
 myenv/
 __pycache__/
+app/__pycache__/
+performance_log.txt
 *.pyc
 *.pkl
 *.bin
-ImageData/
-app/__pycache__/
-performance_log.txt
