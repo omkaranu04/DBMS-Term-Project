@@ -10,7 +10,7 @@ def calculate_product_scores(iterations=5):
     """
     Calculate and update product scores in Neo4j using two metrics:
     1. intrinsic_score = (2 ^ avg_rating) * log2(1 + sum of all helpful)
-    2. total_score = intrinsic_score + sum for all co-purchased products j with frequency >= 3:
+    2. total_score = intrinsic_score + sum for all co-purchased products j with frequency >= 2:
        (frequency_j / total_frequency) * total_score_j
     
     All scores are rounded to 2 decimal places.
